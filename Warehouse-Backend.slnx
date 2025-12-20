@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Warehouse.Api/Warehouse.Api.csproj" />
+  <Project Path="Warehouse.DataAccess/Warehouse.DataAccess.csproj" />
+  <Project Path="Warehouse.Entities/Warehouse.Entities.csproj" />
+</Solution>
