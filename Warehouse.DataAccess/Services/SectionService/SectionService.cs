@@ -1,7 +1,9 @@
 using MapsterMapper;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.Entities.DTO.Section.Create;
+using Warehouse.Entities.DTO.Section.Update;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
 
@@ -35,7 +37,8 @@ public class SectionService : ISectionService
         var section = new Section
         {
             Id = Guid.NewGuid(),
-            Name = request.Name
+            Name = request.Name,
+            CreatedAt = DateTime.UtcNow
         };
 
         try
@@ -52,7 +55,41 @@ public class SectionService : ISectionService
 
         var response = _mapper.Map<CreateSectionResponse>(section);
 
-        _logger.LogInformation("Section created successfully with ID: {SectionId}", section.Id);
+        _logger.LogInformation("Section created successfully with Id: {SectionId}", section.Id);
         return _responseHandler.Success(response, "Section created successfully");
+    }
+
+    public async Task<Response<UpdateSectionResponse>> UpdateSectionAsync(
+        UpdateSectionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Updating an existing section with Id: {SectionId}", request.Id);
+
+        var section = await _context.Sections.FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
+
+        if (section == null)
+        {
+            _logger.LogWarning("Section with Id: {SectionId} not found", request.Id);
+            return _responseHandler.NotFound<UpdateSectionResponse>(
+                $"Section with ID {request.Id} not found.");
+        }
+
+        section.Name = request.Name;
+
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while Updating section with Id: {SectionId}", request.Id);
+            return _responseHandler.ServerError<UpdateSectionResponse>(
+                "An error occurred while updating the section.");
+        }
+
+        var response = _mapper.Map<UpdateSectionResponse>(section);
+
+        _logger.LogInformation("Section update successfully with name: {SectionName}", section.Name);
+        return _responseHandler.Success(response, "Section updated successfully");
     }
 }

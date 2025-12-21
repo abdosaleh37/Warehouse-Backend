@@ -2,12 +2,11 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Warehouse.Entities.DTO.Section.Create
+namespace Warehouse.Entities.DTO.Section.Update
 {
-    public class CreateSectionResponse
+    public class UpdateSectionRequest
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public DateTime CreatedAt { get; set; }
     }
 }

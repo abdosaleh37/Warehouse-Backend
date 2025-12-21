@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Warehouse.DataAccess.Services.SectionService;
 using Warehouse.Entities.DTO.Section.Create;
+using Warehouse.Entities.DTO.Section.Update;
 using Warehouse.Entities.Shared.ResponseHandling;
 
 namespace Warehouse.Api.Controllers;
@@ -15,20 +16,23 @@ public class SectionsController : ControllerBase
     private readonly ISectionService _sectionService;
     private readonly ILogger<SectionsController> _logger;
     private readonly IValidator<CreateSectionRequest> _createValidator;
+    private readonly IValidator<UpdateSectionRequest> _updateValidator;
 
     public SectionsController(
         ResponseHandler responseHandler,
         ISectionService sectionService,
         ILogger<SectionsController> logger,
-        IValidator<CreateSectionRequest> createValidator)
+        IValidator<CreateSectionRequest> createValidator,
+        IValidator<UpdateSectionRequest> updateValidator)
     {
         _responseHandler = responseHandler;
         _sectionService = sectionService;
         _logger = logger;
         _createValidator = createValidator;
+        _updateValidator = updateValidator;
     }
 
-    [HttpPost]
+    [HttpPost("create")]
     public async Task<ActionResult<Response<CreateSectionResponse>>> CreateSection(
         [FromBody] CreateSectionRequest request,
         CancellationToken cancellationToken)
@@ -42,6 +46,23 @@ public class SectionsController : ControllerBase
                 _responseHandler.BadRequest<object>(errors));
         }
         var response = await _sectionService.CreateSectionAsync(request, cancellationToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpPut("update")]
+    public async Task<ActionResult<Response<UpdateSectionResponse>>> UpdateSection(
+        [FromBody] UpdateSectionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var validationResult = await _updateValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            _logger.LogWarning("Invalid section updating request: {Errors}", validationResult.Errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+        var response = await _sectionService.UpdateSectionAsync(request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 
