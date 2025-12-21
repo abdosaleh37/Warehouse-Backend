@@ -1,8 +1,10 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Warehouse.Api.Validators.Section;
 using Warehouse.DataAccess.Services.SectionService;
 using Warehouse.Entities.DTO.Section.Create;
+using Warehouse.Entities.DTO.Section.Delete;
 using Warehouse.Entities.DTO.Section.GetAll;
 using Warehouse.Entities.DTO.Section.Update;
 using Warehouse.Entities.Shared.ResponseHandling;
@@ -19,6 +21,7 @@ public class SectionsController : ControllerBase
     private readonly IValidator<GetAllSectionsRequest> _getAllValidator;
     private readonly IValidator<CreateSectionRequest> _createValidator;
     private readonly IValidator<UpdateSectionRequest> _updateValidator;
+    private readonly IValidator<DeleteSectionRequest> _deleteValidator;
 
     public SectionsController(
         ResponseHandler responseHandler,
@@ -26,7 +29,8 @@ public class SectionsController : ControllerBase
         ILogger<SectionsController> logger,
         IValidator<GetAllSectionsRequest> getAllValidator,
         IValidator<CreateSectionRequest> createValidator,
-        IValidator<UpdateSectionRequest> updateValidator)
+        IValidator<UpdateSectionRequest> updateValidator,
+        IValidator<DeleteSectionRequest> deleteValidator)
     {
         _responseHandler = responseHandler;
         _sectionService = sectionService;
@@ -34,11 +38,12 @@ public class SectionsController : ControllerBase
         _getAllValidator = getAllValidator;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
+        _deleteValidator = deleteValidator;
     }
 
     [HttpGet]
     public async Task<ActionResult<Response<GetAllSectionsResponse>>> GetAllSections(
-    CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
         var response = await _sectionService.GetAllSectionsAsync(cancellationToken);
         return StatusCode((int)response.StatusCode, response);
@@ -75,6 +80,23 @@ public class SectionsController : ControllerBase
                 _responseHandler.BadRequest<object>(errors));
         }
         var response = await _sectionService.UpdateSectionAsync(request, cancellationToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpPut("delete")]
+    public async Task<ActionResult<Response<DeleteSectionResponse>>> DeleteSection(
+        [FromBody] DeleteSectionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var validationResult = await _deleteValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            _logger.LogWarning("Invalid section deleting request: {Errors}", validationResult.Errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+        var response = await _sectionService.DeleteSectionAsync(request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 

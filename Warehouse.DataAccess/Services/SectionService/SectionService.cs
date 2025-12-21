@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.Entities.DTO.Section.Create;
+using Warehouse.Entities.DTO.Section.Delete;
 using Warehouse.Entities.DTO.Section.GetAll;
 using Warehouse.Entities.DTO.Section.Update;
 using Warehouse.Entities.Entities;
@@ -102,7 +103,7 @@ public class SectionService : ISectionService
         {
             _logger.LogWarning("Section with Id: {SectionId} not found", request.Id);
             return _responseHandler.NotFound<UpdateSectionResponse>(
-                $"Section with ID {request.Id} not found.");
+                $"Section with Id {request.Id} not found.");
         }
 
         section.Name = request.Name;
@@ -122,5 +123,40 @@ public class SectionService : ISectionService
 
         _logger.LogInformation("Section update successfully with name: {SectionName}", section.Name);
         return _responseHandler.Success(response, "Section updated successfully");
+    }
+
+    public async Task<Response<DeleteSectionResponse>> DeleteSectionAsync(
+        DeleteSectionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Deleting section with Id: {SectionId}", request.SectionId);
+        var section = await _context.Sections.FirstOrDefaultAsync(s => s.Id == request.SectionId, cancellationToken);
+
+        if (section == null)
+        {
+            _logger.LogWarning("Section with Id: {SectionId} not found", request.SectionId);
+            return _responseHandler.NotFound<DeleteSectionResponse>(
+                $"Section with Id {request.SectionId} not found.");
+        }
+
+        try
+        {
+            _context.Sections.Remove(section);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while deleting section with Id: {SectionId}", request.SectionId);
+            return _responseHandler.ServerError<DeleteSectionResponse>(
+                "An error occurred while deleting the section.");
+        }
+
+        var response = new DeleteSectionResponse
+        {
+            SectionId = section.Id
+        };
+
+        _logger.LogInformation("Section deleted successfully with Id: {SectionId}", section.Id);
+        return _responseHandler.Success(response, "Section deleted successfully");
     }
 }
