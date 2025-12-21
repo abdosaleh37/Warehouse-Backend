@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.Entities.DTO.Section.Create;
+using Warehouse.Entities.DTO.Section.GetAll;
 using Warehouse.Entities.DTO.Section.Update;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
@@ -26,6 +27,36 @@ public class SectionService : ISectionService
         _mapper = mapper;
         _responseHandler = responseHandler;
         _logger = logger;
+    }
+
+    public async Task<Response<GetAllSectionsResponse>> GetAllSectionsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Retrieving all sections from the database.");
+        var sections = await _context.Sections
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        if (sections.Count == 0)
+        {
+            _logger.LogWarning("No sections found in the database.");
+            var emptyResponse = new GetAllSectionsResponse
+            {
+                Sections = new List<GetAllSectionsResult>(),
+                TotalSections = 0
+            };
+            return _responseHandler.Success(emptyResponse, "No sections found.");
+        }
+
+        var sectionResults = _mapper.Map<List<GetAllSectionsResult>>(sections);
+        var response = new GetAllSectionsResponse
+        {
+            Sections = sectionResults,
+            TotalSections = sectionResults.Count
+        };
+        
+        _logger.LogInformation("Successfully retrieved {TotalSections} sections.", response.TotalSections);
+        return _responseHandler.Success(response, "Sections retrieved successfully.");
     }
 
     public async Task<Response<CreateSectionResponse>> CreateSectionAsync(

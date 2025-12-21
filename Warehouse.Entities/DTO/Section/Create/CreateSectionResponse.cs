@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Warehouse.Entities.DTO.Section.Create
+﻿namespace Warehouse.Entities.DTO.Section.Create
 {
     public class CreateSectionResponse
     {
