@@ -18,6 +18,9 @@ public class SectionConfiguration : IEntityTypeConfiguration<Section>
             .IsRequired()
             .HasMaxLength(200);
 
+        builder.Property(s => s.CreatedAt)
+            .HasDefaultValueSql("GETUTCDATE()");
+
         builder.HasIndex(s => s.Name)
             .IsUnique();
 

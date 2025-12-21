@@ -4,7 +4,6 @@ using Warehouse.DataAccess.Services.ItemService;
 
 namespace Warehouse.Api.Controllers;
 
-[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class ItemsController : ControllerBase
