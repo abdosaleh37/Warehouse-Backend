@@ -130,13 +130,24 @@ public class SectionService : ISectionService
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Deleting section with Id: {SectionId}", request.SectionId);
-        var section = await _context.Sections.FirstOrDefaultAsync(s => s.Id == request.SectionId, cancellationToken);
+        var section = await _context.Sections
+            .Include(s => s.Items)
+            .FirstOrDefaultAsync(s => s.Id == request.SectionId, cancellationToken);
 
         if (section == null)
         {
             _logger.LogWarning("Section with Id: {SectionId} not found", request.SectionId);
             return _responseHandler.NotFound<DeleteSectionResponse>(
                 $"Section with Id {request.SectionId} not found.");
+        }
+
+        // Check if section has items
+        if (section.Items.Any())
+        {
+            _logger.LogWarning("Cannot delete section with Id: {SectionId} because it has {ItemCount} items", 
+                request.SectionId, section.Items.Count);
+            return _responseHandler.BadRequest<DeleteSectionResponse>(
+                $"Cannot delete section '{section.Name}' because it contains {section.Items.Count} item(s). Please remove or reassign the items first.");
         }
 
         try
