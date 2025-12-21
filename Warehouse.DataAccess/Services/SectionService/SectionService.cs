@@ -5,6 +5,7 @@ using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.Entities.DTO.Section.Create;
 using Warehouse.Entities.DTO.Section.Delete;
 using Warehouse.Entities.DTO.Section.GetAll;
+using Warehouse.Entities.DTO.Section.GetById;
 using Warehouse.Entities.DTO.Section.Update;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
@@ -58,6 +59,28 @@ public class SectionService : ISectionService
         
         _logger.LogInformation("Successfully retrieved {TotalSections} sections.", response.TotalSections);
         return _responseHandler.Success(response, "Sections retrieved successfully.");
+    }
+
+    public async Task<Response<GetSectionByIdResponse>> GetSectionByIdAsync(
+        GetSectionByIdRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Retrieving section with Id: {SectionId}", request.Id);
+        var section = await _context.Sections
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
+
+        if (section == null)
+        {
+            _logger.LogWarning("Section with Id: {SectionId} not found", request.Id);
+            return _responseHandler.NotFound<GetSectionByIdResponse>(
+                $"Section with Id {request.Id} not found.");
+        }
+
+        var response = _mapper.Map<GetSectionByIdResponse>(section);
+
+        _logger.LogInformation("Section with Id: {SectionId} retrieved successfully", request.Id);
+        return _responseHandler.Success(response, "Section retrieved successfully");
     }
 
     public async Task<Response<CreateSectionResponse>> CreateSectionAsync(

@@ -6,6 +6,7 @@ using Warehouse.DataAccess.Services.SectionService;
 using Warehouse.Entities.DTO.Section.Create;
 using Warehouse.Entities.DTO.Section.Delete;
 using Warehouse.Entities.DTO.Section.GetAll;
+using Warehouse.Entities.DTO.Section.GetById;
 using Warehouse.Entities.DTO.Section.Update;
 using Warehouse.Entities.Shared.ResponseHandling;
 
@@ -19,6 +20,7 @@ public class SectionsController : ControllerBase
     private readonly ISectionService _sectionService;
     private readonly ILogger<SectionsController> _logger;
     private readonly IValidator<GetAllSectionsRequest> _getAllValidator;
+    private readonly IValidator<GetSectionByIdRequest> _getByIdValidator;
     private readonly IValidator<CreateSectionRequest> _createValidator;
     private readonly IValidator<UpdateSectionRequest> _updateValidator;
     private readonly IValidator<DeleteSectionRequest> _deleteValidator;
@@ -28,6 +30,7 @@ public class SectionsController : ControllerBase
         ISectionService sectionService,
         ILogger<SectionsController> logger,
         IValidator<GetAllSectionsRequest> getAllValidator,
+        IValidator<GetSectionByIdRequest> getByIdValidator,
         IValidator<CreateSectionRequest> createValidator,
         IValidator<UpdateSectionRequest> updateValidator,
         IValidator<DeleteSectionRequest> deleteValidator)
@@ -36,6 +39,7 @@ public class SectionsController : ControllerBase
         _sectionService = sectionService;
         _logger = logger;
         _getAllValidator = getAllValidator;
+        _getByIdValidator = getByIdValidator;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
         _deleteValidator = deleteValidator;
@@ -46,6 +50,23 @@ public class SectionsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var response = await _sectionService.GetAllSectionsAsync(cancellationToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpGet("id")]
+    public async Task<ActionResult<Response<GetSectionByIdResponse>>> GetSectionById(
+        [FromQuery] GetSectionByIdRequest request,
+        CancellationToken cancellationToken)
+    {
+        var validationResult = await _getByIdValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            _logger.LogWarning("Invalid section get-by-id request: {Errors}", validationResult.Errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+        var response = await _sectionService.GetSectionByIdAsync(request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 
@@ -83,7 +104,7 @@ public class SectionsController : ControllerBase
         return StatusCode((int)response.StatusCode, response);
     }
 
-    [HttpPut("delete")]
+    [HttpDelete("delete")]
     public async Task<ActionResult<Response<DeleteSectionResponse>>> DeleteSection(
         [FromBody] DeleteSectionRequest request,
         CancellationToken cancellationToken)
