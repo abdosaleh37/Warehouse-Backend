@@ -10,21 +10,22 @@ This is a multi-layered ASP.NET Core Web API built with .NET 10.0, implementing 
 
 The solution consists of four main projects:
 
-- **Warehouse.Api** - Web API layer with controllers, validators, and API configuration
-- **Warehouse.DataAccess** - Data access layer with DbContext, repositories, and services
-- **Warehouse.Domain** - Business logic and domain services
-- **Warehouse.Entities** - Entity models, DTOs, and shared utilities
+- **Warehouse.Api** - Web API layer with controllers (Auth, Items, Sections, ItemVouchers), validators, extensions, and API configuration
+- **Warehouse.DataAccess** - Data access layer with DbContext, entity configurations, Mapster mappings, EF Core migrations, and domain services
+- **Warehouse.Domain** - Domain layer for business logic and domain models
+- **Warehouse.Entities** - Entity models, DTOs, shared utilities, and response handling
 
 ## 🚀 Features
 
-- **Authentication & Authorization** - JWT-based authentication with Identity framework
-- **Items Management** - CRUD operations for warehouse items
-- **Sections Management** - Organize warehouse into logical sections
-- **Item Vouchers** - Track item movements and transactions
-- **Logging** - Comprehensive logging with Serilog
-- **API Documentation** - Swagger/OpenAPI integration
-- **Validation** - FluentValidation for request validation
-- **Auto-mapping** - Mapster for DTO mapping
+- **Authentication & Authorization** - JWT-based authentication with ASP.NET Core Identity
+- **Items Management** - Full CRUD operations for warehouse inventory items
+- **Sections Management** - Organize warehouse into logical sections with timestamps
+- **Item Vouchers** - Track item movements, transactions, and audit trails
+- **Request Validation** - FluentValidation for input validation on all API endpoints
+- **Auto-mapping** - Mapster for efficient DTO-to-Entity mapping
+- **Structured Logging** - Serilog with console and rolling file output
+- **API Documentation** - Swagger/OpenAPI integration for interactive API exploration
+- **Database Migrations** - Entity Framework Core migrations for version control
 
 ## 🛠️ Technology Stack
 
@@ -205,25 +206,27 @@ dotnet test /p:CollectCoverage=true
 
 ```
 Warehouse-Backend/
-├── Warehouse.Api/              # Web API layer
-│   ├── Controllers/            # API controllers
-│   ├── Extensions/            # Service collection extensions
-│   ├── Validators/            # FluentValidation validators
-│   ├── Logs/                  # Application logs
-│   └── Program.cs             # Application entry point
-├── Warehouse.DataAccess/      # Data access layer
-│   ├── ApplicationDbContext/  # EF Core DbContext
-│   ├── EntitiesConfigurations/# Entity configurations
-│   ├── Mappings/              # Mapster mappings
-│   ├── Migrations/            # EF Core migrations
-│   └── Services/              # Data services
-├── Warehouse.Domain/          # Business logic layer
-├── Warehouse.Entities/        # Domain entities and DTOs
-│   ├── Entities/              # Domain models
-│   ├── DTO/                   # Data transfer objects
-│   ├── Shared/                # Shared models
-│   └── Utilities/             # Helper utilities
-└── Warehouse-Backend.slnx     # Solution file
+├── Warehouse.Api/                   # Web API layer
+│   ├── Controllers/                 # API endpoints (Auth, Items, Sections, ItemVouchers)
+│   ├── Extensions/                  # Service collection extensions
+│   ├── Validators/                  # FluentValidation validators
+│   ├── Logs/                        # Rolling daily application logs
+│   ├── Properties/                  # Launch settings
+│   ├── appsettings.json             # Configuration (development & production)
+│   └── Program.cs                   # Application entry point
+├── Warehouse.DataAccess/            # Data access layer
+│   ├── ApplicationDbContext/        # EF Core DbContext (WarehouseDbContext)
+│   ├── EntitiesConfigurations/      # Entity configurations
+│   ├── Mappings/                    # Mapster mapping profiles (Auth, Item, ItemVoucher, Section)
+│   ├── Migrations/                  # EF Core database migrations
+│   ├── Services/                    # Domain services (AuthService, ItemService, ItemVoucherService, SectionService)
+│   └── Extensions/                  # Data access service extensions
+├── Warehouse.Entities/              # Entities and DTOs
+│   ├── Entities/                    # Domain models (ApplicationUser, Item, ItemVoucher, Section)
+│   ├── DTO/                         # Data transfer objects by entity
+│   ├── Shared/                      # Response handling and shared models
+│   └── Utilities/                   # Helper utilities
+└── Warehouse-Backend.slnx           # Solution file
 ```
 
 ## 🤝 Contributing
@@ -237,15 +240,3 @@ Warehouse-Backend/
 ## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 👥 Authors
-
-- Your Name - Initial work
-
-## 🐛 Known Issues
-
-- None at the moment
-
-## 📞 Support
-
-For support, email your-email@example.com or open an issue in the repository.

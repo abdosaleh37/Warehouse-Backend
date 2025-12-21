@@ -12,8 +12,8 @@ public class SectionMapping : IRegister
     public void Register(TypeAdapterConfig config)
     {
         config.NewConfig<Section, GetAllSectionsResult>()
-            .Map(dest => dest.SectionId, src => src.Id)
-            .Map(dest => dest.SectionName, src => src.Name);
+            .Map(dest => dest.Id, src => src.Id)
+            .Map(dest => dest.Name, src => src.Name);
 
         config.NewConfig<Section, GetSectionByIdResponse>()
             .Map(dest => dest.Id, src => src.Id)

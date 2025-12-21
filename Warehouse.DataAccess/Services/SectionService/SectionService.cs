@@ -36,6 +36,7 @@ public class SectionService : ISectionService
     {
         _logger.LogInformation("Retrieving all sections from the database.");
         var sections = await _context.Sections
+            .OrderBy(s => s.CreatedAt)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
@@ -152,23 +153,22 @@ public class SectionService : ISectionService
         DeleteSectionRequest request,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Deleting section with Id: {SectionId}", request.SectionId);
+        _logger.LogInformation("Deleting section with Id: {SectionId}", request.Id);
         var section = await _context.Sections
             .Include(s => s.Items)
-            .FirstOrDefaultAsync(s => s.Id == request.SectionId, cancellationToken);
+            .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 
         if (section == null)
         {
-            _logger.LogWarning("Section with Id: {SectionId} not found", request.SectionId);
+            _logger.LogWarning("Section with Id: {SectionId} not found", request.Id);
             return _responseHandler.NotFound<DeleteSectionResponse>(
-                $"Section with Id {request.SectionId} not found.");
+                $"Section with Id {request.Id} not found.");
         }
 
-        // Check if section has items
         if (section.Items.Any())
         {
             _logger.LogWarning("Cannot delete section with Id: {SectionId} because it has {ItemCount} items", 
-                request.SectionId, section.Items.Count);
+                request.Id, section.Items.Count);
             return _responseHandler.BadRequest<DeleteSectionResponse>(
                 $"Cannot delete section '{section.Name}' because it contains {section.Items.Count} item(s). Please remove or reassign the items first.");
         }
@@ -180,14 +180,14 @@ public class SectionService : ISectionService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while deleting section with Id: {SectionId}", request.SectionId);
+            _logger.LogError(ex, "Error occurred while deleting section with Id: {SectionId}", request.Id);
             return _responseHandler.ServerError<DeleteSectionResponse>(
                 "An error occurred while deleting the section.");
         }
 
         var response = new DeleteSectionResponse
         {
-            SectionId = section.Id
+            Id = section.Id
         };
 
         _logger.LogInformation("Section deleted successfully with Id: {SectionId}", section.Id);

@@ -2,6 +2,6 @@
 {
     public class DeleteSectionRequest
     {
-        public Guid SectionId { get; set; }
+        public Guid Id { get; set; }
     }
 }

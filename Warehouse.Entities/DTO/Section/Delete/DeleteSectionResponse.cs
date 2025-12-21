@@ -2,6 +2,6 @@
 {
     public class DeleteSectionResponse
     {
-        public Guid SectionId { get; set; }
+        public Guid Id { get; set; }
     }
 }

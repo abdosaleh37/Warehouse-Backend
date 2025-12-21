@@ -1,7 +1,6 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Warehouse.Api.Validators.Section;
 using Warehouse.DataAccess.Services.SectionService;
 using Warehouse.Entities.DTO.Section.Create;
 using Warehouse.Entities.DTO.Section.Delete;
