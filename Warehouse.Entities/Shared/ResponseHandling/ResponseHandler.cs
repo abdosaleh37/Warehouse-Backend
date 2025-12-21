@@ -105,7 +105,7 @@ namespace Warehouse.Entities.Shared.ResponseHandling
         {
             return new Response<T>()
             {
-                StatusCode = System.Net.HttpStatusCode.InternalServerError,
+                StatusCode = HttpStatusCode.InternalServerError,
                 Succeeded = false,
                 Message = message
             };

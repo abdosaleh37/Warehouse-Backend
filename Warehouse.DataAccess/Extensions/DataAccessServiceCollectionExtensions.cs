@@ -69,7 +69,7 @@ public static class DataAccessServiceCollectionExtensions
     private static IServiceCollection AddMapsterConfig(this IServiceCollection services)
     {
         var mappingConfig = TypeAdapterConfig.GlobalSettings;
-        mappingConfig.Scan(typeof(MappingConfig).Assembly);
+        mappingConfig.Scan(typeof(DataAccessServiceCollectionExtensions).Assembly);
         services.AddSingleton<IMapper>(new Mapper(mappingConfig));
         return services;
     }

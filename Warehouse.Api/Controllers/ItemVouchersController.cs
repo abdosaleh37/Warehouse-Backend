@@ -4,7 +4,6 @@ using Warehouse.DataAccess.Services.ItemVoucherService;
 
 namespace Warehouse.Api.Controllers;
 
-[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class ItemVouchersController : ControllerBase
