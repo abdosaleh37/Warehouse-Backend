@@ -31,18 +31,24 @@ public class ItemConfiguration : IEntityTypeConfiguration<Item>
 
         builder.Property(i => i.Unit)
             .IsRequired()
-            .HasDefaultValue(UnitOfMeasure.Piece);
+            .HasDefaultValue(UnitOfMeasure.Piece)
+            .HasConversion<string>();
 
         builder.Property(i => i.OpeningQuantity)
             .IsRequired()
-            .HasPrecision(18, 3);
+            .HasDefaultValue(0);
 
         builder.Property(i => i.OpeningValue)
             .IsRequired()
-            .HasPrecision(18, 2);
+            .HasPrecision(18, 2)
+            .HasDefaultValue(0m);
 
         builder.Property(i => i.OpeningDate)
             .IsRequired();
+
+        builder.Property(i => i.CreatedAt)
+            .IsRequired()
+            .HasDefaultValueSql("GETUTCDATE()");
 
         builder.HasOne(i => i.Section)
             .WithMany(s => s.Items)
