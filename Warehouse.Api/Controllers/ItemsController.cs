@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Warehouse.DataAccess.Services.ItemService;
 using Warehouse.Entities.DTO.Items.Create;
+using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
 using Warehouse.Entities.Shared.ResponseHandling;
 
@@ -16,6 +17,7 @@ public class ItemsController : ControllerBase
     private readonly IItemService _itemService;
     private readonly ILogger<SectionsController> _logger;
     private readonly IValidator<GetItemsOfSectionRequest> _getItemsOfSectionValidator;
+    private readonly IValidator<GetByIdRequest> _getByIdValidator;
     private readonly IValidator<CreateItemRequest> _createItemValidator;
 
     public ItemsController(
@@ -23,6 +25,7 @@ public class ItemsController : ControllerBase
         IItemService itemService,
         ILogger<SectionsController> logger,
         IValidator<GetItemsOfSectionRequest> getItemsOfSectionValidator,
+        IValidator<GetByIdRequest> getByIdValidator,
         IValidator<CreateItemRequest> createItemValidator)
 
     {
@@ -30,6 +33,7 @@ public class ItemsController : ControllerBase
         _itemService = itemService;
         _logger = logger;
         _getItemsOfSectionValidator = getItemsOfSectionValidator;
+        _getByIdValidator = getByIdValidator;
         _createItemValidator = createItemValidator;
     }
 
@@ -47,6 +51,23 @@ public class ItemsController : ControllerBase
                 _responseHandler.BadRequest<object>(errors));
         }
         var response = await _itemService.GetItemsofSectionAsync(request, cancellationToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpGet("id")]
+    public async Task<ActionResult<Response<GetByIdResponse>>> GetById(
+        [FromQuery] GetByIdRequest request,
+        CancellationToken cancellationToken)
+    {
+        var validationResult = await _getByIdValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            _logger.LogWarning("Invalid get items of section request: {Errors}", validationResult.Errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+        var response = await _itemService.GetByIdAsync(request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.Entities.DTO.Items.Create;
+using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
@@ -72,6 +73,28 @@ public class ItemService : IItemService
         _logger.LogInformation("Retrieved {ItemCount} items from section: {SectionId}",
             itemResults.Count, request.SectionId);
         return _responseHandler.Success(responseData, "Items retrieved successfully.");
+    }
+
+    public async Task<Response<GetByIdResponse>> GetByIdAsync(
+        GetByIdRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Getting item by Id: {ItemId}", request.Id);
+        var item = await _context.Items
+            .Include(i => i.Section)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
+
+        if (item == null)
+        {
+            _logger.LogWarning("Item with Id: {ItemId} not found.", request.Id);
+            return _responseHandler.NotFound<GetByIdResponse>("Item not found");
+        }
+
+        var responseData = _mapper.Map<GetByIdResponse>(item);
+
+        _logger.LogInformation("Item with Id: {ItemId} retrieved successfully.", request.Id);
+        return _responseHandler.Success(responseData, "Item retrieved successfully.");
     }
 
     public async Task<Response<CreateItemResponse>> CreateItemAsync(

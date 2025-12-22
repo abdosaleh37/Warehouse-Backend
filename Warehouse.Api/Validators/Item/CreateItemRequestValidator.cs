@@ -18,6 +18,9 @@ namespace Warehouse.Api.Validators.Item
                 .NotEmpty().WithMessage("Description is required.")
                 .MaximumLength(200).WithMessage("Description must not exceed 200 characters.");
 
+            RuleFor(x => x.Unit)
+                .IsInEnum().WithMessage("Unit must be a valid UnitOfMeasure.");
+
             RuleFor(x => x.OpeningQuantity)
                 .GreaterThanOrEqualTo(0).WithMessage("OpeningQuantity must be non-negative.");
 
