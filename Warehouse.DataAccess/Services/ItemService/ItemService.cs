@@ -5,6 +5,7 @@ using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.Entities.DTO.Items.Create;
 using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
+using Warehouse.Entities.DTO.Items.Update;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
 
@@ -102,8 +103,8 @@ public class ItemService : IItemService
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Creating new item in section: {SectionId}", request.SectionId);
-        var section = _context.Sections
-            .FirstOrDefault(s => s.Id == request.SectionId);
+        var section = await _context.Sections
+            .FirstOrDefaultAsync(s => s.Id == request.SectionId);
 
         if (section == null)
         {
@@ -141,5 +142,53 @@ public class ItemService : IItemService
         _logger.LogInformation("Item created successfully with Id: {ItemId} in section: {SectionId}",
             newItem.Id, request.SectionId);
         return _responseHandler.Success(responseData, "Item created successfully.");
+    }
+
+    public async Task<Response<UpdateItemResponse>> UpdateItemAsync(
+        UpdateItemRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Updating item: {ItemId}", request.Id);
+
+        var item = await _context.Items
+            .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
+
+        if (item == null)
+        {
+            _logger.LogWarning("Item: {Id} not found. Cannot update item.", request.Id);
+            return _responseHandler.NotFound<UpdateItemResponse>("Item not found");
+        }
+
+        // Check for ItemCode conflict within the same section if code changed
+        if (!string.Equals(item.ItemCode, request.ItemCode, StringComparison.OrdinalIgnoreCase))
+        {
+            var existingWithCode = await _context.Items
+                .AsNoTracking()
+                .FirstOrDefaultAsync(i => i.SectionId == item.SectionId 
+                        && i.ItemCode == request.ItemCode 
+                        && i.Id != item.Id, cancellationToken);
+
+            if (existingWithCode != null)
+            {
+                _logger.LogWarning("Item code conflict: {ItemCode} already exists in section {SectionId}", request.ItemCode, item.SectionId);
+                return _responseHandler.BadRequest<UpdateItemResponse>("An item with the same code already exists in this section.");
+            }
+        }
+
+        _mapper.Map(request, item);
+
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while updating item with Id: {ItemId}", request.Id);
+            return _responseHandler.InternalServerError<UpdateItemResponse>("An error occurred while updating the item.");
+        }
+
+        var responseData = _mapper.Map<UpdateItemResponse>(item);
+        _logger.LogInformation("Item updated successfully with Id: {ItemId}", item.Id);
+        return _responseHandler.Success(responseData, "Item updated successfully.");
     }
 }

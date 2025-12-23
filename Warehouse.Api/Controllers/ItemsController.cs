@@ -5,6 +5,7 @@ using Warehouse.DataAccess.Services.ItemService;
 using Warehouse.Entities.DTO.Items.Create;
 using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
+using Warehouse.Entities.DTO.Items.Update;
 using Warehouse.Entities.Shared.ResponseHandling;
 
 namespace Warehouse.Api.Controllers;
@@ -19,6 +20,7 @@ public class ItemsController : ControllerBase
     private readonly IValidator<GetItemsOfSectionRequest> _getItemsOfSectionValidator;
     private readonly IValidator<GetByIdRequest> _getByIdValidator;
     private readonly IValidator<CreateItemRequest> _createItemValidator;
+    private readonly IValidator<UpdateItemRequest> _updateItemValidator;
 
     public ItemsController(
         ResponseHandler responseHandler,
@@ -26,8 +28,8 @@ public class ItemsController : ControllerBase
         ILogger<SectionsController> logger,
         IValidator<GetItemsOfSectionRequest> getItemsOfSectionValidator,
         IValidator<GetByIdRequest> getByIdValidator,
-        IValidator<CreateItemRequest> createItemValidator)
-
+        IValidator<CreateItemRequest> createItemValidator,
+        IValidator<UpdateItemRequest> updateItemValidator)
     {
         _responseHandler = responseHandler;
         _itemService = itemService;
@@ -35,6 +37,7 @@ public class ItemsController : ControllerBase
         _getItemsOfSectionValidator = getItemsOfSectionValidator;
         _getByIdValidator = getByIdValidator;
         _createItemValidator = createItemValidator;
+        _updateItemValidator = updateItemValidator;
     }
 
     [HttpGet("section")]
@@ -85,6 +88,23 @@ public class ItemsController : ControllerBase
                 _responseHandler.BadRequest<object>(errors));
         }
         var response = await _itemService.CreateItemAsync(request, cancellationToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpPut]
+    public async Task<ActionResult<Response<UpdateItemResponse>>> UpdateItem(
+        [FromBody] UpdateItemRequest request,
+        CancellationToken cancellationToken)
+    {
+        var validationResult = await _updateItemValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            _logger.LogWarning("Invalid create item request: {Errors}", validationResult.Errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+        var response = await _itemService.UpdateItemAsync(request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 

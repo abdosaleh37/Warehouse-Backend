@@ -1,8 +1,8 @@
 ﻿using Warehouse.Entities.Utilities.Enums;
 
-namespace Warehouse.Entities.DTO.Items.Create
+namespace Warehouse.Entities.DTO.Items.Update
 {
-    public class CreateItemResponse
+    public class UpdateItemResponse
     {
         public Guid Id { get; set; }
         public Guid SectionId { get; set; }

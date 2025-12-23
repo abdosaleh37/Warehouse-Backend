@@ -2,6 +2,7 @@ using Mapster;
 using Warehouse.Entities.DTO.Items.Create;
 using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
+using Warehouse.Entities.DTO.Items.Update;
 using Warehouse.Entities.Entities;
 
 namespace Warehouse.DataAccess.Mappings;
@@ -21,12 +22,24 @@ public class ItemMapping : IRegister
             .Map(dest => dest.OpeningDate, src => src.OpeningDate)
             .IgnoreNullValues(true);
 
+        // Map update request onto existing Item
+        config.NewConfig<UpdateItemRequest, Item>()
+            .Map(dest => dest.ItemCode, src => src.ItemCode)
+            .Map(dest => dest.PartNo, src => src.PartNo)
+            .Map(dest => dest.Description, src => src.Description)
+            .Map(dest => dest.Unit, src => src.Unit)
+            .Map(dest => dest.OpeningQuantity, src => src.OpeningQuantity)
+            .Map(dest => dest.OpeningValue, src => src.OpeningValue)
+            .Map(dest => dest.OpeningDate, src => src.OpeningDate)
+            .IgnoreNullValues(true);
+
         config.NewConfig<Item, CreateItemResponse>()
             .Map(dest => dest.Id, src => src.Id)
             .Map(dest => dest.SectionId, src => src.SectionId)
             .Map(dest => dest.ItemCode, src => src.ItemCode)
             .Map(dest => dest.PartNo, src => src.PartNo)
             .Map(dest => dest.Description, src => src.Description)
+            .Map(dest => dest.UnitOfMeasure, src => src.Unit)
             .Map(dest => dest.OpeningQuantity, src => src.OpeningQuantity)
             .Map(dest => dest.OpeningValue, src => src.OpeningValue)
             .Map(dest => dest.OpeningDate, src => src.OpeningDate)
@@ -54,6 +67,19 @@ public class ItemMapping : IRegister
             .Map(dest => dest.CreatedAt, src => src.CreatedAt)
             .Map(dest => dest.SectionId, src => src.SectionId)
             .Map(dest => dest.SectionName, src => src.Section.Name)
+            .IgnoreNullValues(true);
+
+        config.NewConfig<Item, UpdateItemResponse>()
+            .Map(dest => dest.Id, src => src.Id)
+            .Map(dest => dest.SectionId, src => src.SectionId)
+            .Map(dest => dest.ItemCode, src => src.ItemCode)
+            .Map(dest => dest.PartNo, src => src.PartNo)
+            .Map(dest => dest.Description, src => src.Description)
+            .Map(dest => dest.UnitOfMeasure, src => src.Unit)
+            .Map(dest => dest.OpeningQuantity, src => src.OpeningQuantity)
+            .Map(dest => dest.OpeningValue, src => src.OpeningValue)
+            .Map(dest => dest.OpeningDate, src => src.OpeningDate)
+            .Map(dest => dest.CreatedAt, src => src.CreatedAt)
             .IgnoreNullValues(true);
     }
 }
