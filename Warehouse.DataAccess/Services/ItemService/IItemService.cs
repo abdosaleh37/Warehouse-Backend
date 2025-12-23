@@ -1,4 +1,5 @@
 using Warehouse.Entities.DTO.Items.Create;
+using Warehouse.Entities.DTO.Items.Delete;
 using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
 using Warehouse.Entities.DTO.Items.Update;
@@ -22,5 +23,9 @@ public interface IItemService
 
     Task<Response<UpdateItemResponse>> UpdateItemAsync(
         UpdateItemRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<Response<DeleteItemResponse>> DeleteItemAsync(
+        DeleteItemRequest request,
         CancellationToken cancellationToken = default);
 }

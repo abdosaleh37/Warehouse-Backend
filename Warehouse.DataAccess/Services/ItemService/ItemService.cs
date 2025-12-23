@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.Entities.DTO.Items.Create;
+using Warehouse.Entities.DTO.Items.Delete;
 using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
 using Warehouse.Entities.DTO.Items.Update;
@@ -190,5 +191,48 @@ public class ItemService : IItemService
         var responseData = _mapper.Map<UpdateItemResponse>(item);
         _logger.LogInformation("Item updated successfully with Id: {ItemId}", item.Id);
         return _responseHandler.Success(responseData, "Item updated successfully.");
+    }
+
+    public async Task<Response<DeleteItemResponse>> DeleteItemAsync(
+        DeleteItemRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Deleting item: {ItemId}", request.Id);
+        var item = await _context.Items
+            .Include(i => i.ItemVouchers)
+            .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
+
+        if (item == null)
+        {             
+            _logger.LogWarning("Item: {ItemId} not found. Cannot delete item.", request.Id);
+            return _responseHandler.NotFound<DeleteItemResponse>("Item not found");
+        }
+
+        if (item.ItemVouchers.Any())
+        {
+            _logger.LogWarning("Cannot delete item with Id: {Id} because it has {VouchersCount} Vouchers",
+                request.Id, item.ItemVouchers.Count);
+            return _responseHandler.BadRequest<DeleteItemResponse>(
+                $"Cannot delete item '{item.Id}' because it contains {item.ItemVouchers.Count} vouchers(s). Please remove or reassign the vouchers first.");
+        }
+
+        try
+        {
+            _context.Items.Remove(item);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while deleting item with Id: {ItemId}", request.Id);
+            return _responseHandler.InternalServerError<DeleteItemResponse>("An error occurred while deleting the item.");
+        }
+
+        var responseData = new DeleteItemResponse
+        {
+            Id = item.Id
+        };
+
+        _logger.LogInformation("Item deleted successfully with Id: {ItemId}", item.Id);
+        return _responseHandler.Success(responseData, "Item deleted successfully.");
     }
 }

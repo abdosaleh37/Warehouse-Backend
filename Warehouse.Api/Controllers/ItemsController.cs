@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Warehouse.DataAccess.Services.ItemService;
 using Warehouse.Entities.DTO.Items.Create;
+using Warehouse.Entities.DTO.Items.Delete;
 using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
 using Warehouse.Entities.DTO.Items.Update;
@@ -21,6 +22,7 @@ public class ItemsController : ControllerBase
     private readonly IValidator<GetByIdRequest> _getByIdValidator;
     private readonly IValidator<CreateItemRequest> _createItemValidator;
     private readonly IValidator<UpdateItemRequest> _updateItemValidator;
+    private readonly IValidator<DeleteItemRequest> _deleteItemValidator;
 
     public ItemsController(
         ResponseHandler responseHandler,
@@ -29,7 +31,8 @@ public class ItemsController : ControllerBase
         IValidator<GetItemsOfSectionRequest> getItemsOfSectionValidator,
         IValidator<GetByIdRequest> getByIdValidator,
         IValidator<CreateItemRequest> createItemValidator,
-        IValidator<UpdateItemRequest> updateItemValidator)
+        IValidator<UpdateItemRequest> updateItemValidator,
+        IValidator<DeleteItemRequest> deleteItemValidator)
     {
         _responseHandler = responseHandler;
         _itemService = itemService;
@@ -38,6 +41,7 @@ public class ItemsController : ControllerBase
         _getByIdValidator = getByIdValidator;
         _createItemValidator = createItemValidator;
         _updateItemValidator = updateItemValidator;
+        _deleteItemValidator = deleteItemValidator;
     }
 
     [HttpGet("section")]
@@ -105,6 +109,23 @@ public class ItemsController : ControllerBase
                 _responseHandler.BadRequest<object>(errors));
         }
         var response = await _itemService.UpdateItemAsync(request, cancellationToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpDelete]
+    public async Task<ActionResult<Response<DeleteItemResponse>>> DeleteItem(
+        [FromBody] DeleteItemRequest request,
+        CancellationToken cancellationToken)
+    {
+        var validationResult = await _deleteItemValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            _logger.LogWarning("Invalid create item request: {Errors}", validationResult.Errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+        var response = await _itemService.DeleteItemAsync(request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 
