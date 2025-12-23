@@ -13,11 +13,13 @@ public class SectionMapping : IRegister
     {
         config.NewConfig<Section, GetAllSectionsResult>()
             .Map(dest => dest.Id, src => src.Id)
-            .Map(dest => dest.Name, src => src.Name);
+            .Map(dest => dest.Name, src => src.Name)
+            .Map(dest => dest.ItemCount, src => src.Items.Count);
 
         config.NewConfig<Section, GetSectionByIdResponse>()
             .Map(dest => dest.Id, src => src.Id)
-            .Map(dest => dest.Name, src => src.Name);
+            .Map(dest => dest.Name, src => src.Name)
+            .Map(dest => dest.ItemCount, src => src.Items.Count);
 
         config.NewConfig<Section, CreateSectionResponse>()
             .Map(dest => dest.Id, src => src.Id)

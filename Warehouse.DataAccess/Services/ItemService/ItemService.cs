@@ -46,6 +46,7 @@ public class ItemService : IItemService
 
         var items = await _context.Items
             .AsNoTracking()
+            .Include(i => i.ItemVouchers)
             .Where(i => i.SectionId == request.SectionId)
             .OrderBy(i => i.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -84,6 +85,7 @@ public class ItemService : IItemService
         _logger.LogInformation("Getting item by Id: {ItemId}", request.Id);
         var item = await _context.Items
             .Include(i => i.Section)
+            .Include(i => i.ItemVouchers)
             .AsNoTracking()
             .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
 
@@ -105,7 +107,7 @@ public class ItemService : IItemService
     {
         _logger.LogInformation("Creating new item in section: {SectionId}", request.SectionId);
         var section = await _context.Sections
-            .FirstOrDefaultAsync(s => s.Id == request.SectionId);
+            .FirstOrDefaultAsync(s => s.Id == request.SectionId, cancellationToken);
 
         if (section == null)
         {

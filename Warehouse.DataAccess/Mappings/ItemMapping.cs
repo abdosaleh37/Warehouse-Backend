@@ -1,4 +1,5 @@
 using Mapster;
+using System.Linq;
 using Warehouse.Entities.DTO.Items.Create;
 using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
@@ -53,6 +54,8 @@ public class ItemMapping : IRegister
             .Map(dest => dest.OpeningQuantity, src => src.OpeningQuantity)
             .Map(dest => dest.OpeningValue, src => src.OpeningValue)
             .Map(dest => dest.OpeningDate, src => src.OpeningDate)
+            .Map(dest => dest.AvailableQuantity, src => (src.OpeningQuantity) + (src.ItemVouchers != null ? src.ItemVouchers.Sum(v => v.InQuantity - v.OutQuantity) : 0))
+            .Map(dest => dest.AvailableValue, src => (src.OpeningValue * src.OpeningQuantity) + (src.ItemVouchers != null ? src.ItemVouchers.Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice) : 0m))
             .Map(dest => dest.CreatedAt, src => src.CreatedAt);
 
         config.NewConfig<Item, GetByIdResponse>()
@@ -64,6 +67,8 @@ public class ItemMapping : IRegister
             .Map(dest => dest.OpeningQuantity, src => src.OpeningQuantity)
             .Map(dest => dest.OpeningValue, src => src.OpeningValue)
             .Map(dest => dest.OpeningDate, src => src.OpeningDate)
+            .Map(dest => dest.AvailableQuantity, src => (src.OpeningQuantity) + (src.ItemVouchers != null ? src.ItemVouchers.Sum(v => v.InQuantity - v.OutQuantity) : 0))
+            .Map(dest => dest.AvailableValue, src => (src.OpeningValue * src.OpeningQuantity) + (src.ItemVouchers != null ? src.ItemVouchers.Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice) : 0m))
             .Map(dest => dest.CreatedAt, src => src.CreatedAt)
             .Map(dest => dest.SectionId, src => src.SectionId)
             .Map(dest => dest.SectionName, src => src.Section.Name)
