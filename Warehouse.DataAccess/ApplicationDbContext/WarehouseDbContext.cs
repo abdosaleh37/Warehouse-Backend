@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Warehouse.Entities.Entities;
+using WarehouseEntity = Warehouse.Entities.Entities.Warehouse;
 
 namespace Warehouse.DataAccess.ApplicationDbContext;
 
@@ -14,6 +15,7 @@ public class WarehouseDbContext : IdentityDbContext<ApplicationUser, IdentityRol
     public DbSet<Section> Sections { get; set; }
     public DbSet<Item> Items { get; set; }
     public DbSet<ItemVoucher> ItemVouchers { get; set; }
+    public DbSet<WarehouseEntity> Warehouses { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
