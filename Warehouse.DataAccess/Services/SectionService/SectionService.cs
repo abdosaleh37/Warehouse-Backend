@@ -36,6 +36,7 @@ public class SectionService : ISectionService
     {
         _logger.LogInformation("Retrieving all sections from the database.");
         var sections = await _context.Sections
+            .Include(s => s.Items)
             .OrderBy(s => s.CreatedAt)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -68,6 +69,7 @@ public class SectionService : ISectionService
     {
         _logger.LogInformation("Retrieving section with Id: {SectionId}", request.Id);
         var section = await _context.Sections
+            .Include(s => s.Items)
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 

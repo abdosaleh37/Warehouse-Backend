@@ -14,11 +14,12 @@ public class Item
     public string Description { get; set; } = string.Empty;
     public UnitOfMeasure Unit { get; set; } = UnitOfMeasure.Piece;
 
-    public decimal OpeningQuantity { get; set; }
-    
-    public decimal OpeningValue { get; set; }
+    public int OpeningQuantity { get; set; } = 0;
+
+    public decimal OpeningValue { get; set; } = 0;
     
     public DateTime OpeningDate { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation properties
     public virtual Section Section { get; set; } = null!;
