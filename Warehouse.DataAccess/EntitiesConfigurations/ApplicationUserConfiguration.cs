@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Warehouse.Entities.Entities;
+using WarehouseEntity = Warehouse.Entities.Entities.Warehouse;
 
 namespace Warehouse.DataAccess.EntitiesConfigurations;
 
@@ -10,26 +11,10 @@ public class ApplicationUserConfiguration : IEntityTypeConfiguration<Application
     {
         builder.HasKey(u => u.Id);
 
-        builder.Property(u => u.FirstName)
-            .IsRequired()
-            .HasMaxLength(100);
-
-        builder.Property(u => u.LastName)
-            .IsRequired()
-            .HasMaxLength(100);
-
-        builder.Property(u => u.IsActive)
-            .IsRequired()
-            .HasDefaultValue(true);
-
-        builder.Property(u => u.CreatedAt)
-            .IsRequired()
-            .HasDefaultValueSql("GETUTCDATE()");
-
-        builder.Property(u => u.LastLoginAt)
-            .IsRequired(false);
-
-        builder.Property(u => u.DateOfBirth)
-            .IsRequired(false);
+        // Configure one-to-one relationship with Warehouse if present
+        builder.HasOne(u => u.Warehouse)
+            .WithOne(w => w.User)
+            .HasForeignKey<WarehouseEntity>(w => w.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

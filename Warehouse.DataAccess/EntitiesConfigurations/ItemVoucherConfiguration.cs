@@ -30,11 +30,6 @@ public class ItemVoucherConfiguration : IEntityTypeConfiguration<ItemVoucher>
             .HasPrecision(18, 3)
             .HasDefaultValue(0);
 
-        builder.Property(v => v.BalanceAfter)
-            .IsRequired()
-            .HasPrecision(18, 3)
-            .HasDefaultValue(0);
-
         builder.Property(v => v.UnitPrice)
             .IsRequired()
             .HasPrecision(18, 2)

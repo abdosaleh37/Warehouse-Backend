@@ -19,8 +19,8 @@ public class ItemConfiguration : IEntityTypeConfiguration<Item>
             .IsRequired()
             .HasMaxLength(50);
 
-        builder.HasIndex(i => i.ItemCode)
-            .IsUnique();
+        builder.Property(i => i.ItemCode)
+            .IsRequired();
 
         builder.Property(i => i.PartNo)
             .HasMaxLength(100);
