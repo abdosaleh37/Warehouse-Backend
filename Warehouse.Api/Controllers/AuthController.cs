@@ -13,13 +13,15 @@ public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     private readonly IValidator<RegisterRequest> _registerValidator;
+    private readonly IValidator<LoginRequest> _loginValidator;
     private readonly ResponseHandler _responseHandler;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService, IValidator<RegisterRequest> registerValidator, ResponseHandler responseHandler, ILogger<AuthController> logger)
+    public AuthController(IAuthService authService, IValidator<RegisterRequest> registerValidator, IValidator<LoginRequest> loginValidator, ResponseHandler responseHandler, ILogger<AuthController> logger)
     {
         _authService = authService;
         _registerValidator = registerValidator;
+        _loginValidator = loginValidator;
         _responseHandler = responseHandler;
         _logger = logger;
     }
@@ -37,6 +39,22 @@ public class AuthController : ControllerBase
         }
 
         var response = await _authService.RegisterAsync(request, cancellationToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpPost("login")]
+    public async Task<ActionResult<Response<LoginResponse>>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
+    {
+        var validationResult = await _loginValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            _logger.LogWarning("Invalid login request: {Errors}", validationResult.Errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+
+        var response = await _authService.LoginAsync(request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 }

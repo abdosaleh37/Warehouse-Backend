@@ -3,6 +3,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.Entities.DTO.Auth;
 using Warehouse.Entities.Entities;
@@ -96,5 +100,65 @@ public class AuthService : IAuthService
 
         _logger.LogInformation("User {UserName} registered successfully with Warehouse {WarehouseId}", user.UserName, warehouse.Id);
         return _responseHandler.Success(response, "User registered successfully");
+    }
+
+    public async Task<Response<LoginResponse>> LoginAsync(
+        LoginRequest request, 
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Login attempt for user: {UserName}", request.UserName);
+
+        var user = await _userManager.Users
+            .Include(u => u.Warehouse)
+            .FirstOrDefaultAsync(u => u.UserName == request.UserName, cancellationToken);
+
+        if (user == null)
+        {
+            _logger.LogWarning("Login failed: user not found {UserName}", request.UserName);
+            return _responseHandler.NotFound<LoginResponse>("Invalid username or password");
+        }
+
+        var passwordValid = await _userManager.CheckPasswordAsync(user, request.Password);
+        if (!passwordValid)
+        {
+            _logger.LogWarning("Login failed: invalid password for user {UserName}", request.UserName);
+            return _responseHandler.NotFound<LoginResponse>("Invalid username or password");
+        }
+
+        var jwtSettings = _configuration.GetSection("JWT").Get<Entities.Utilities.Configurations.JwtSettings>();
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings?.SigningKey ?? string.Empty));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var claims = new List<Claim>
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName ?? string.Empty),
+
+        };
+
+        if (user.Warehouse != null)
+        {
+            claims.Add(new Claim("WarehouseId", user.Warehouse.Id.ToString()));
+        }
+
+        var expiry = DateTime.UtcNow.AddMinutes(jwtSettings?.ExpiryInMinutes ?? 60);
+
+        var token = new JwtSecurityToken(
+            issuer: jwtSettings?.Issuer,
+            audience: jwtSettings?.Audience,
+            claims: claims,
+            expires: expiry,
+            signingCredentials: creds);
+
+        var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+
+        var response = new LoginResponse
+        {
+            Token = tokenString,
+            ExpiresAt = expiry
+        };
+
+        _logger.LogInformation("User {UserName} logged in successfully.", request.UserName);
+        return _responseHandler.Success(response, "Login successful");
     }
 }
