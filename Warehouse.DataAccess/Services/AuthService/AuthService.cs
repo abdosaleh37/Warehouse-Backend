@@ -134,7 +134,8 @@ public class AuthService : IAuthService
         var response = new LoginResponse
         {
             Token = tokens.AccessToken,
-            ExpiresAt = DateTime.UtcNow.AddDays(7)
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            RefreshToken = tokens.RefreshToken
         };
         
         _logger.LogInformation("User {UserName} logged in successfully.", request.UserName);
@@ -193,6 +194,36 @@ public class AuthService : IAuthService
             _logger.LogError(ex, "Failed to refresh token");
             try { await transaction.RollbackAsync(); } catch {}
             return _responseHandler.ServerError<RefreshTokenResponse>("Failed to process refresh token");
+        }
+    }
+
+    public async Task<Response<object>> LogoutAsync(ClaimsPrincipal userClaims)
+    {
+        if (userClaims == null)
+        {
+            _logger.LogWarning("Logout failed: ClaimsPrincipal is null");
+            return _responseHandler.Unauthorized<object>("Invalid token");
+        }
+
+        var sub = userClaims.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                  ?? userClaims.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrWhiteSpace(sub) || !Guid.TryParse(sub, out var userId))
+        {
+            _logger.LogWarning("Logout failed: unable to determine user id from ClaimsPrincipal");
+            return _responseHandler.Unauthorized<object>("Invalid token");
+        }
+
+        try
+        {
+            await _tokenStoreService.InvalidateOldTokensAsync(userId);
+            _logger.LogInformation("Refresh tokens invalidated for user: {UserId}", userId);
+            return _responseHandler.Success<object>(null!, "Logged out successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to logout user derived from ClaimsPrincipal");
+            return _responseHandler.ServerError<object>("Failed to logout user");
         }
     }
 }

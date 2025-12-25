@@ -1,5 +1,6 @@
 using Warehouse.Entities.DTO.Auth;
 using Warehouse.Entities.Shared.ResponseHandling;
+using System.Security.Claims;
 
 namespace Warehouse.DataAccess.Services.AuthService;
 
@@ -14,4 +15,6 @@ public interface IAuthService
         CancellationToken cancellationToken = default);
 
     Task<Response<RefreshTokenResponse>> RefreshTokenAsync(string refreshToken);
+
+    Task<Response<object>> LogoutAsync(ClaimsPrincipal user);
 }

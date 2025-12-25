@@ -1,6 +1,8 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
+//using Microsoft.OpenApi.Models;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 using System.Reflection;
 using System.Text;
@@ -67,10 +69,52 @@ public static class ApiServiceCollectionExtensions
 
     private static IServiceCollection AddSwaggerServices(this IServiceCollection services)
     {
+        services.AddOpenApi();
         services.AddEndpointsApiExplorer();
-        
-        // Basic Swagger configuration without advanced OpenApi features
-        services.AddSwaggerGen();
+        services.AddSwaggerGen(options =>
+        {
+            options.SwaggerDoc("v1", new OpenApiInfo
+            {
+                Title = "Warehouse API",
+                Version = "v1",
+                Description = "Warehouse Management System API"
+            });
+
+            // Add JWT Bearer Authorization
+            options.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new OpenApiSecurityScheme
+            {
+                Name = "Authorization",
+                Description = "please enter valid token",
+                In = ParameterLocation.Header,
+                Type = SecuritySchemeType.Http,
+                BearerFormat = "JWT",
+                Scheme = JwtBearerDefaults.AuthenticationScheme,
+            });
+
+            //options.AddSecurityRequirement(new OpenApiSecurityRequirement
+            //{
+            //    {
+            //        new OpenApiSecurityScheme
+            //        {
+            //            Reference = new OpenApiReference
+            //            {
+            //                Id = JwtBearerDefaults.AuthenticationScheme,
+            //                Type = ReferenceType.SecurityScheme,
+            //            },
+
+            //        },
+            //        Array.Empty<string>()
+            //    }
+            //});
+
+            var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+            var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFilename);
+            if (File.Exists(xmlPath))
+            {
+                options.IncludeXmlComments(xmlPath);
+            }
+
+        });
 
         return services;
     }
