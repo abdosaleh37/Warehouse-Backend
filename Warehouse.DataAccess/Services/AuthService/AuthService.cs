@@ -24,6 +24,7 @@ public class AuthService : IAuthService
     private readonly ResponseHandler _responseHandler;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthService> _logger;
+    private readonly Services.TokenService.ITokenStoreService _tokenStoreService;
 
     public AuthService(
         UserManager<ApplicationUser> userManager,
@@ -32,7 +33,8 @@ public class AuthService : IAuthService
         IMapper mapper,
         ResponseHandler responseHandler,
         IConfiguration configuration,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        Services.TokenService.ITokenStoreService tokenStoreService)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -41,6 +43,7 @@ public class AuthService : IAuthService
         _responseHandler = responseHandler;
         _configuration = configuration;
         _logger = logger;
+        _tokenStoreService = tokenStoreService;
     }
 
     public async Task<Response<RegisterResponse>> RegisterAsync(
@@ -125,40 +128,71 @@ public class AuthService : IAuthService
             return _responseHandler.NotFound<LoginResponse>("Invalid username or password");
         }
 
-        var jwtSettings = _configuration.GetSection("JWT").Get<Entities.Utilities.Configurations.JwtSettings>();
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings?.SigningKey ?? string.Empty));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        var claims = new List<Claim>
-        {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName ?? string.Empty),
-
-        };
-
-        if (user.Warehouse != null)
-        {
-            claims.Add(new Claim("WarehouseId", user.Warehouse.Id.ToString()));
-        }
-
-        var expiry = DateTime.UtcNow.AddMinutes(jwtSettings?.ExpiryInMinutes ?? 60);
-
-        var token = new JwtSecurityToken(
-            issuer: jwtSettings?.Issuer,
-            audience: jwtSettings?.Audience,
-            claims: claims,
-            expires: expiry,
-            signingCredentials: creds);
-
-        var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+        // Use TokenStoreService to generate and persist tokens
+        var tokens = await _tokenStoreService.GenerateAndStoreTokensAsync(user.Id, user);
 
         var response = new LoginResponse
         {
-            Token = tokenString,
-            ExpiresAt = expiry
+            Token = tokens.AccessToken,
+            ExpiresAt = DateTime.UtcNow.AddDays(7)
         };
-
+        
         _logger.LogInformation("User {UserName} logged in successfully.", request.UserName);
         return _responseHandler.Success(response, "Login successful");
+    }
+
+    public async Task<Response<RefreshTokenResponse>> RefreshTokenAsync(string refreshToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return _responseHandler.Unauthorized<RefreshTokenResponse>("Invalid refresh token");
+        }
+
+        // Atomically mark token as used using a single update statement to avoid race conditions
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            var rows = await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE [UserRefreshTokens] SET IsUsed = 1 WHERE Token = {0} AND IsUsed = 0 AND ExpiryDateUtc > {1}",
+                refreshToken, DateTime.UtcNow);
+
+            if (rows == 0)
+            {
+                await transaction.RollbackAsync();
+                return _responseHandler.Unauthorized<RefreshTokenResponse>("Invalid refresh token");
+            }
+
+            // Now retrieve the token record to get the UserId
+            var tokenRecord = await _context.UserRefreshTokens.AsNoTracking().FirstOrDefaultAsync(t => t.Token == refreshToken);
+            if (tokenRecord == null)
+            {
+                await transaction.RollbackAsync();
+                return _responseHandler.Unauthorized<RefreshTokenResponse>("Invalid refresh token");
+            }
+
+            await transaction.CommitAsync();
+
+            var user = await _userManager.Users.Include(u => u.Warehouse).FirstOrDefaultAsync(u => u.Id == tokenRecord.UserId);
+            if (user == null)
+            {
+                return _responseHandler.Unauthorized<RefreshTokenResponse>("Invalid refresh token");
+            }
+
+            var tokens = await _tokenStoreService.GenerateAndStoreTokensAsync(tokenRecord.UserId, user);
+
+            var response = new RefreshTokenResponse
+            {
+                AccessToken = tokens.AccessToken,
+                RefreshToken = tokens.RefreshToken
+            };
+
+            return _responseHandler.Success(response, "Token refreshed");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to refresh token");
+            try { await transaction.RollbackAsync(); } catch {}
+            return _responseHandler.ServerError<RefreshTokenResponse>("Failed to process refresh token");
+        }
     }
 }

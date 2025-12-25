@@ -57,4 +57,17 @@ public class AuthController : ControllerBase
         var response = await _authService.LoginAsync(request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
+
+    [HttpPost("refresh-token")]
+    public async Task<ActionResult<Response<RefreshTokenResponse>>> RefreshToken([FromBody] RefreshTokenRequest request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            return StatusCode((int)_responseHandler.BadRequest<object>("RefreshToken is required").StatusCode,
+                _responseHandler.BadRequest<object>("RefreshToken is required"));
+        }
+
+        var response = await _authService.RefreshTokenAsync(request.RefreshToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
 }
