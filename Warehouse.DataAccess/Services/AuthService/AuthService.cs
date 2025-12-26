@@ -59,6 +59,8 @@ public class AuthService : IAuthService
 
         var user = new ApplicationUser
         {
+            FirstName = request.FirstName,
+            LastName = request.LastName,
             UserName = request.UserName,
             Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email
         };
