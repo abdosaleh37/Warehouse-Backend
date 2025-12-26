@@ -10,6 +10,7 @@ using Warehouse.DataAccess.Services.AuthService;
 using Warehouse.DataAccess.Services.ItemService;
 using Warehouse.DataAccess.Services.ItemVoucherService;
 using Warehouse.DataAccess.Services.SectionService;
+using Warehouse.DataAccess.Services.TokenService;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
 
@@ -80,6 +81,7 @@ public static class DataAccessServiceCollectionExtensions
         
         // Authentication
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ITokenStoreService, TokenStoreService>();
         
         // Warehouse services
         services.AddScoped<ISectionService, SectionService>();

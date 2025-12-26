@@ -16,6 +16,7 @@ public class WarehouseDbContext : IdentityDbContext<ApplicationUser, IdentityRol
     public DbSet<Item> Items { get; set; }
     public DbSet<ItemVoucher> ItemVouchers { get; set; }
     public DbSet<WarehouseEntity> Warehouses { get; set; }
+    public DbSet<UserRefreshToken> UserRefreshTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
