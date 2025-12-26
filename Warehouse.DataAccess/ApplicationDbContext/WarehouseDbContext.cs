@@ -12,6 +12,7 @@ public class WarehouseDbContext : IdentityDbContext<ApplicationUser, IdentityRol
     {
     }
 
+    public DbSet<Category> Categories { get; set; }
     public DbSet<Section> Sections { get; set; }
     public DbSet<Item> Items { get; set; }
     public DbSet<ItemVoucher> ItemVouchers { get; set; }

@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.DataAccess.Mappings;
 using Warehouse.DataAccess.Services.AuthService;
-using Warehouse.DataAccess.Services.CategoriesService;
+using Warehouse.DataAccess.Services.CategoryService;
 using Warehouse.DataAccess.Services.ItemService;
 using Warehouse.DataAccess.Services.ItemVoucherService;
 using Warehouse.DataAccess.Services.SectionService;
