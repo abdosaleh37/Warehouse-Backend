@@ -21,8 +21,16 @@ public class SectionConfiguration : IEntityTypeConfiguration<Section>
         builder.Property(s => s.CreatedAt)
             .HasDefaultValueSql("GETUTCDATE()");
 
+        builder.Property(s => s.CategoryId)
+            .IsRequired();
+
         builder.HasIndex(s => s.Name)
             .IsUnique();
+
+        builder.HasOne(s => s.Category)
+            .WithMany(c => c.Sections)
+            .HasForeignKey(s => s.CategoryId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(s => s.Items)
             .WithOne(i => i.Section)
