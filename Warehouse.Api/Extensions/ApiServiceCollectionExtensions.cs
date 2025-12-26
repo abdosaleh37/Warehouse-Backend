@@ -1,13 +1,13 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi;
-//using Microsoft.OpenApi.Models;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 using System.Reflection;
 using System.Text;
 using System.Text.Json.Serialization;
 using Warehouse.Entities.Utilities.Configurations;
+using NSwag;
+using NSwag.Generation.Processors.Security;
 
 namespace Warehouse.Api.Extensions;
 
@@ -40,14 +40,14 @@ public static class ApiServiceCollectionExtensions
     private static IServiceCollection AddAuthConfig(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddAuthentication(opt =>
-            {
-                opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                opt.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-                opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-                opt.DefaultForbidScheme = JwtBearerDefaults.AuthenticationScheme;
-                opt.DefaultSignInScheme = JwtBearerDefaults.AuthenticationScheme;
-                opt.DefaultSignOutScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
+        {
+            opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            opt.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+            opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            opt.DefaultForbidScheme = JwtBearerDefaults.AuthenticationScheme;
+            opt.DefaultSignInScheme = JwtBearerDefaults.AuthenticationScheme;
+            opt.DefaultSignOutScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
             .AddJwtBearer(options =>
             {
                 var jwtSettings = configuration.GetSection("JWT").Get<JwtSettings>();
@@ -69,51 +69,30 @@ public static class ApiServiceCollectionExtensions
 
     private static IServiceCollection AddSwaggerServices(this IServiceCollection services)
     {
-        services.AddOpenApi();
         services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen(options =>
+        services.AddOpenApiDocument(config =>
         {
-            options.SwaggerDoc("v1", new OpenApiInfo
-            {
-                Title = "Warehouse API",
-                Version = "v1",
-                Description = "Warehouse Management System API"
-            });
+            config.DocumentName = "v1";
+            config.Title = "Warehouse API";
+            config.Version = "v1";
+            config.Description = "Warehouse Management System API";
 
-            // Add JWT Bearer Authorization
-            options.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new OpenApiSecurityScheme
+            config.AddSecurity("JWT", Enumerable.Empty<string>(), new OpenApiSecurityScheme
             {
-                Name = "Authorization",
-                Description = "please enter valid token",
-                In = ParameterLocation.Header,
-                Type = SecuritySchemeType.Http,
+                Type = OpenApiSecuritySchemeType.Http,
+                Scheme = "bearer",
                 BearerFormat = "JWT",
-                Scheme = JwtBearerDefaults.AuthenticationScheme,
+                Description = "Enter the JWT token"
             });
 
-            //options.AddSecurityRequirement(new OpenApiSecurityRequirement
-            //{
-            //    {
-            //        new OpenApiSecurityScheme
-            //        {
-            //            Reference = new OpenApiReference
-            //            {
-            //                Id = JwtBearerDefaults.AuthenticationScheme,
-            //                Type = ReferenceType.SecurityScheme,
-            //            },
-
-            //        },
-            //        Array.Empty<string>()
-            //    }
-            //});
+            config.OperationProcessors.Add(new AspNetCoreOperationSecurityScopeProcessor("JWT"));
 
             var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
             var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFilename);
             if (File.Exists(xmlPath))
             {
-                options.IncludeXmlComments(xmlPath);
+                config.PostProcess = document => { document.Info = document.Info ?? new OpenApiInfo(); };
             }
-
         });
 
         return services;
