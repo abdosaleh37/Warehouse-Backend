@@ -17,7 +17,11 @@ public class AuthController : ControllerBase
     private readonly ResponseHandler _responseHandler;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService, IValidator<RegisterRequest> registerValidator, IValidator<LoginRequest> loginValidator, ResponseHandler responseHandler, ILogger<AuthController> logger)
+    public AuthController(IAuthService authService, 
+        IValidator<RegisterRequest> registerValidator, 
+        IValidator<LoginRequest> loginValidator, 
+        ResponseHandler responseHandler, 
+        ILogger<AuthController> logger)
     {
         _authService = authService;
         _registerValidator = registerValidator;
