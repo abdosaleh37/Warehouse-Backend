@@ -1,5 +1,6 @@
 ﻿using Warehouse.Entities.DTO.Category.Create;
 using Warehouse.Entities.DTO.Category.GetAll;
+using Warehouse.Entities.DTO.Category.GetById;
 using Warehouse.Entities.Shared.ResponseHandling;
 
 namespace Warehouse.DataAccess.Services.CategoryService
@@ -8,6 +9,11 @@ namespace Warehouse.DataAccess.Services.CategoryService
     {
         Task<Response<GetAllCategoriesResponse>> GetAllAsync(
             Guid userId,
+            CancellationToken cancellationToken);
+
+        Task<Response<GetCategoryByIdResponse>> GetByIdAsync(
+            Guid id,
+            GetCategoryByIdRequest request,
             CancellationToken cancellationToken);
 
         Task<Response<CreateCategoryResponse>> CreateAsync(

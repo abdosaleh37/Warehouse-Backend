@@ -5,6 +5,8 @@ using Microsoft.Extensions.Logging;
 using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.Entities.DTO.Category.Create;
 using Warehouse.Entities.DTO.Category.GetAll;
+using Warehouse.Entities.DTO.Category.GetById;
+using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
@@ -61,6 +63,31 @@ namespace Warehouse.DataAccess.Services.CategoryService
 
             _logger.LogInformation("Categories retreived successfully.");
             return _responseHandler.Success(response, "Categories retreived successfully.");
+        }
+
+        public async Task<Response<GetCategoryByIdResponse>> GetByIdAsync(
+            Guid userId,
+            GetCategoryByIdRequest request,
+            CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Getting information of category: {CategoryId}", request.Id);
+
+            var category = await _context.Categories
+                .AsNoTracking()
+                .Include(c => c.Warehouse)
+                .Include(c => c.Sections)
+                .FirstOrDefaultAsync(c => c.Id == request.Id && c.Warehouse.UserId == userId, cancellationToken);
+
+            if (category == null)
+            {
+                _logger.LogWarning("Category: {CategoryId} not found.", request.Id);
+                return _responseHandler.NotFound<GetCategoryByIdResponse>("Category not found.");
+            }
+
+            var response = _mapper.Map<GetCategoryByIdResponse>(category);
+
+            _logger.LogInformation("Category: {CategoryId} information retreived successfully.", category.Id);
+            return _responseHandler.Success(response, "Category retreived successfully.");
         }
 
         public async Task<Response<CreateCategoryResponse>> CreateAsync(
