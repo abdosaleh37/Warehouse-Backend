@@ -73,7 +73,7 @@ namespace Warehouse.Api.Controllers
             if (!validationResult.IsValid)
             {
                 string errors = validationResult.Errors.FlattenErrors();
-                _logger.LogWarning("Invalid get a category request: {Errors}", validationResult.Errors);
+                _logger.LogWarning("Invalid get a category request: {Errors}", errors);
                 return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                     _responseHandler.BadRequest<object>(errors));
             }
@@ -98,7 +98,7 @@ namespace Warehouse.Api.Controllers
             if (!validationResult.IsValid)
             {
                 string errors = validationResult.Errors.FlattenErrors();
-                _logger.LogWarning("Invalid create category request: {Errors}", validationResult.Errors);
+                _logger.LogWarning("Invalid create category request: {Errors}", errors);
                 return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                     _responseHandler.BadRequest<object>(errors));
             }
@@ -123,7 +123,7 @@ namespace Warehouse.Api.Controllers
             if (!validationResult.IsValid)
             {
                 string errors = validationResult.Errors.FlattenErrors();
-                _logger.LogWarning("Invalid update category request: {Errors}", validationResult.Errors);
+                _logger.LogWarning("Invalid update category request: {Errors}", errors);
                 return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                     _responseHandler.BadRequest<object>(errors));
             }
@@ -148,7 +148,7 @@ namespace Warehouse.Api.Controllers
             if (!validationResult.IsValid)
             {
                 string errors = validationResult.Errors.FlattenErrors();
-                _logger.LogWarning("Invalid delete category request: {Errors}", validationResult.Errors);
+                _logger.LogWarning("Invalid delete category request: {Errors}", errors);
                 return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                     _responseHandler.BadRequest<object>(errors));
             }

@@ -59,7 +59,7 @@ public class SectionsController : ControllerBase
     [HttpGet("{id:guid}")]
     [Authorize]
     public async Task<ActionResult<Response<GetSectionByIdResponse>>> GetSectionById(
-        [FromQuery] GetSectionByIdRequest request,
+        [FromRoute] Guid id,
         CancellationToken cancellationToken)
     {
         if (!User.TryGetUserId(out Guid userId))
@@ -68,11 +68,12 @@ public class SectionsController : ControllerBase
                 _responseHandler.Unauthorized<object>("Invalid user"));
         }
 
+        var request = new GetSectionByIdRequest { Id = id };
         var validationResult = await _getByIdValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
             string errors = validationResult.Errors.FlattenErrors();
-            _logger.LogWarning("Invalid section get-by-id request: {Errors}", validationResult.Errors);
+            _logger.LogWarning("Invalid section get-by-id request: {Errors}", errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
         }
@@ -96,7 +97,7 @@ public class SectionsController : ControllerBase
         if (!validationResult.IsValid)
         {
             string errors = validationResult.Errors.FlattenErrors();
-            _logger.LogWarning("Invalid section creation request: {Errors}", validationResult.Errors);
+            _logger.LogWarning("Invalid section creation request: {Errors}", errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
         }
@@ -120,7 +121,7 @@ public class SectionsController : ControllerBase
         if (!validationResult.IsValid)
         {
             string errors = validationResult.Errors.FlattenErrors();
-            _logger.LogWarning("Invalid section updating request: {Errors}", validationResult.Errors);
+            _logger.LogWarning("Invalid section updating request: {Errors}", errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
         }
@@ -144,7 +145,7 @@ public class SectionsController : ControllerBase
         if (!validationResult.IsValid)
         {
             string errors = validationResult.Errors.FlattenErrors();
-            _logger.LogWarning("Invalid section deleting request: {Errors}", validationResult.Errors);
+            _logger.LogWarning("Invalid section deleting request: {Errors}", errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
         }

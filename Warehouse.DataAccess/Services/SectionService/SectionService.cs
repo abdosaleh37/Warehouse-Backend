@@ -76,14 +76,16 @@ public class SectionService : ISectionService
         _logger.LogInformation("Retrieving section with Id: {SectionId}", request.Id);
         var section = await _context.Sections
             .Include(s => s.Items)
+            .Include(s => s.Category)
+                .ThenInclude(c => c.Warehouse)
             .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
+            .FirstOrDefaultAsync(s => s.Id == request.Id && s.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (section == null)
         {
             _logger.LogWarning("Section with Id: {SectionId} not found", request.Id);
             return _responseHandler.NotFound<GetSectionByIdResponse>(
-                $"Section with Id {request.Id} not found.");
+                $"Section not found.");
         }
 
         var response = _mapper.Map<GetSectionByIdResponse>(section);
@@ -99,11 +101,23 @@ public class SectionService : ISectionService
     {
         _logger.LogInformation("Creating a new section with name: {SectionName}", request.Name);
 
+        var category = await _context.Categories
+            .Include(c => c.Warehouse)
+            .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.Warehouse.UserId == userId, cancellationToken);
+
+        if (category == null)
+        {
+            _logger.LogWarning("Category with Id: {CategoryId} not found for user: {UserId}", 
+                request.CategoryId, userId);
+            return _responseHandler.NotFound<CreateSectionResponse>("Category not found.");
+        }
+
         var section = new Section
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            CategoryId = category.Id
         };
 
         try
@@ -131,13 +145,16 @@ public class SectionService : ISectionService
     {
         _logger.LogInformation("Updating an existing section with Id: {SectionId}", request.Id);
 
-        var section = await _context.Sections.FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
+        var section = await _context.Sections
+            .Include(s => s.Category)
+                .ThenInclude(c => c.Warehouse)
+            .FirstOrDefaultAsync(s => s.Id == request.Id && s.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (section == null)
         {
             _logger.LogWarning("Section with Id: {SectionId} not found", request.Id);
             return _responseHandler.NotFound<UpdateSectionResponse>(
-                $"Section with Id {request.Id} not found.");
+                $"Section not found.");
         }
 
         section.Name = request.Name;
@@ -167,13 +184,15 @@ public class SectionService : ISectionService
         _logger.LogInformation("Deleting section with Id: {SectionId}", request.Id);
         var section = await _context.Sections
             .Include(s => s.Items)
-            .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
+            .Include(s => s.Category)
+                .ThenInclude(c => c.Warehouse)
+            .FirstOrDefaultAsync(s => s.Id == request.Id && s.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (section == null)
         {
             _logger.LogWarning("Section with Id: {SectionId} not found", request.Id);
             return _responseHandler.NotFound<DeleteSectionResponse>(
-                $"Section with Id {request.Id} not found.");
+                $"Section not found.");
         }
 
         if (section.Items.Any())

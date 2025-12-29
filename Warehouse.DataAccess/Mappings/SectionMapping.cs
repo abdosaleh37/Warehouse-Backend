@@ -14,20 +14,26 @@ public class SectionMapping : IRegister
         config.NewConfig<Section, GetAllSectionsResult>()
             .Map(dest => dest.Id, src => src.Id)
             .Map(dest => dest.Name, src => src.Name)
+            .Map(dest => dest.CategoryId, src => src.CategoryId)
             .Map(dest => dest.ItemCount, src => src.Items.Count);
 
         config.NewConfig<Section, GetSectionByIdResponse>()
             .Map(dest => dest.Id, src => src.Id)
             .Map(dest => dest.Name, src => src.Name)
+            .Map(dest => dest.CreatedAt, src => src.CreatedAt)
+            .Map(dest => dest.CategoryId, src => src.CategoryId)
+            .Map(dest => dest.CategoryName, src => src.Category.Name)
             .Map(dest => dest.ItemCount, src => src.Items.Count);
 
         config.NewConfig<Section, CreateSectionResponse>()
             .Map(dest => dest.Id, src => src.Id)
             .Map(dest => dest.Name, src => src.Name)
+            .Map(dest => dest.CategoryId, src => src.CategoryId)
             .Map(dest => dest.CreatedAt, src => src.CreatedAt);
 
         config.NewConfig<Section, UpdateSectionResponse>()
             .Map(dest => dest.Id, src => src.Id)
-            .Map(dest => dest.Name, src => src.Name);
+            .Map(dest => dest.Name, src => src.Name)
+            .Map(dest => dest.CategoryId, src => src.CategoryId);
     }
 }

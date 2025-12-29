@@ -1,6 +1,5 @@
 ﻿using FluentValidation.Results;
 using System.Security.Claims;
-using Warehouse.Entities.Shared.ResponseHandling;
 
 namespace Warehouse.Entities.Shared.ResponseHandling
 {
