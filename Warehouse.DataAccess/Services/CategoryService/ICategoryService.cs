@@ -1,4 +1,5 @@
 ﻿using Warehouse.Entities.DTO.Category.Create;
+using Warehouse.Entities.DTO.Category.Delete;
 using Warehouse.Entities.DTO.Category.GetAll;
 using Warehouse.Entities.DTO.Category.GetById;
 using Warehouse.Entities.DTO.Category.Update;
@@ -25,6 +26,11 @@ namespace Warehouse.DataAccess.Services.CategoryService
         Task<Response<UpdateCategoryResponse>> UpdateAsync(
             Guid userId,
             UpdateCategoryRequest request,
+            CancellationToken cancellationToken);
+
+        Task<Response<DeleteCategoryResponse>> DeleteAsync(
+            Guid userId,
+            DeleteCategoryRequest request,
             CancellationToken cancellationToken);
     }
 }

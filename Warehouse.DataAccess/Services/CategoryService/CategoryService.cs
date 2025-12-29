@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.Entities.DTO.Category.Create;
+using Warehouse.Entities.DTO.Category.Delete;
 using Warehouse.Entities.DTO.Category.GetAll;
 using Warehouse.Entities.DTO.Category.GetById;
 using Warehouse.Entities.DTO.Category.Update;
@@ -140,8 +141,7 @@ namespace Warehouse.DataAccess.Services.CategoryService
 
             var category = await _context.Categories
                 .Include(c => c.Warehouse)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Warehouse.UserId == userId, cancellationToken);
+                .FirstOrDefaultAsync(c => c.Id == request.Id && c.Warehouse.UserId == userId, cancellationToken);
 
             if (category == null)
             {
@@ -166,6 +166,41 @@ namespace Warehouse.DataAccess.Services.CategoryService
 
             _logger.LogInformation("Category updated successfully with name: {CategoryName}", request.Name);
             return _responseHandler.Success(response, "Category updated successfully.");
+        }
+
+        public async Task<Response<DeleteCategoryResponse>> DeleteAsync(
+            Guid userId,
+            DeleteCategoryRequest request,
+            CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Deleting category: {CategoryId}", request.Id);
+
+            var category = await _context.Categories
+                .Include(c => c.Warehouse)
+                .FirstOrDefaultAsync(c => c.Id == request.Id && c.Warehouse.UserId == userId, cancellationToken);
+
+            if (category == null)
+            {
+                _logger.LogWarning("Category: {CategoryId} not found.", request.Id);
+                return _responseHandler.NotFound<DeleteCategoryResponse>("Category not found.");
+            }
+
+            try
+            {
+                _context.Categories.Remove(category);
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while deleting the category.");
+                return _responseHandler.InternalServerError<DeleteCategoryResponse>(
+                    "An error occurred while deleting the category.");
+            }
+
+            var response = new DeleteCategoryResponse { Id = request.Id };
+
+            _logger.LogInformation("Category: {CategoryId} deleted successfully.", request.Id);
+            return _responseHandler.Success(response, "Category deleted successfully.");
         }
     }
 }
