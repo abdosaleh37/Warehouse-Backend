@@ -78,8 +78,8 @@ public class ItemService : IItemService
         return _responseHandler.Success(responseData, "Items retrieved successfully.");
     }
 
-    public async Task<Response<GetByIdResponse>> GetByIdAsync(
-        GetByIdRequest request,
+    public async Task<Response<GetItemByIdResponse>> GetByIdAsync(
+        GetItemByIdRequest request,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Getting item by Id: {ItemId}", request.Id);
@@ -92,10 +92,10 @@ public class ItemService : IItemService
         if (item == null)
         {
             _logger.LogWarning("Item with Id: {ItemId} not found.", request.Id);
-            return _responseHandler.NotFound<GetByIdResponse>("Item not found");
+            return _responseHandler.NotFound<GetItemByIdResponse>("Item not found");
         }
 
-        var responseData = _mapper.Map<GetByIdResponse>(item);
+        var responseData = _mapper.Map<GetItemByIdResponse>(item);
 
         _logger.LogInformation("Item with Id: {ItemId} retrieved successfully.", request.Id);
         return _responseHandler.Success(responseData, "Item retrieved successfully.");

@@ -58,7 +58,7 @@ public class ItemMapping : IRegister
             .Map(dest => dest.AvailableValue, src => (src.OpeningValue * src.OpeningQuantity) + (src.ItemVouchers != null ? src.ItemVouchers.Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice) : 0m))
             .Map(dest => dest.CreatedAt, src => src.CreatedAt);
 
-        config.NewConfig<Item, GetByIdResponse>()
+        config.NewConfig<Item, GetItemByIdResponse>()
             .Map(dest => dest.Id, src => src.Id)
             .Map(dest => dest.ItemCode, src => src.ItemCode)
             .Map(dest => dest.PartNo, src => src.PartNo)

@@ -13,13 +13,14 @@ namespace Warehouse.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class ItemsController : ControllerBase
 {
     private readonly ResponseHandler _responseHandler;
     private readonly IItemService _itemService;
     private readonly ILogger<SectionsController> _logger;
     private readonly IValidator<GetItemsOfSectionRequest> _getItemsOfSectionValidator;
-    private readonly IValidator<GetByIdRequest> _getByIdValidator;
+    private readonly IValidator<GetItemByIdRequest> _getByIdValidator;
     private readonly IValidator<CreateItemRequest> _createItemValidator;
     private readonly IValidator<UpdateItemRequest> _updateItemValidator;
     private readonly IValidator<DeleteItemRequest> _deleteItemValidator;
@@ -29,7 +30,7 @@ public class ItemsController : ControllerBase
         IItemService itemService,
         ILogger<SectionsController> logger,
         IValidator<GetItemsOfSectionRequest> getItemsOfSectionValidator,
-        IValidator<GetByIdRequest> getByIdValidator,
+        IValidator<GetItemByIdRequest> getByIdValidator,
         IValidator<CreateItemRequest> createItemValidator,
         IValidator<UpdateItemRequest> updateItemValidator,
         IValidator<DeleteItemRequest> deleteItemValidator)
@@ -62,8 +63,8 @@ public class ItemsController : ControllerBase
     }
 
     [HttpGet("id")]
-    public async Task<ActionResult<Response<GetByIdResponse>>> GetById(
-        [FromQuery] GetByIdRequest request,
+    public async Task<ActionResult<Response<GetItemByIdResponse>>> GetById(
+        [FromQuery] GetItemByIdRequest request,
         CancellationToken cancellationToken)
     {
         var validationResult = await _getByIdValidator.ValidateAsync(request, cancellationToken);

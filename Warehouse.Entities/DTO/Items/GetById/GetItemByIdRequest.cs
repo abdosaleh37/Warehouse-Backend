@@ -1,6 +1,6 @@
 ﻿namespace Warehouse.Entities.DTO.Items.GetById
 {
-    public class GetByIdRequest
+    public class GetItemByIdRequest
     {
         public Guid Id { get; set; }
     }

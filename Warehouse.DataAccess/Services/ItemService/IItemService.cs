@@ -13,8 +13,8 @@ public interface IItemService
         GetItemsOfSectionRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<Response<GetByIdResponse>> GetByIdAsync(
-        GetByIdRequest request,
+    Task<Response<GetItemByIdResponse>> GetByIdAsync(
+        GetItemByIdRequest request,
         CancellationToken cancellationToken = default);
 
     Task<Response<CreateItemResponse>> CreateItemAsync(

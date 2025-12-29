@@ -2,7 +2,7 @@
 
 namespace Warehouse.Entities.DTO.Items.GetById
 {
-    public class GetByIdResponse
+    public class GetItemByIdResponse
     {
         public Guid Id { get; set; }
         public string ItemCode { get; set; } = string.Empty;

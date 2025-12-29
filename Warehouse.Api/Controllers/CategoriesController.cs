@@ -13,6 +13,7 @@ namespace Warehouse.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class CategoriesController : ControllerBase
     {
         private readonly ResponseHandler _responseHandler;
@@ -42,7 +43,6 @@ namespace Warehouse.Api.Controllers
         }
 
         [HttpGet]
-        [Authorize]
         public async Task<ActionResult<Response<GetAllCategoriesResponse>>> GetAll(
             CancellationToken cancellationToken)
         {
@@ -57,7 +57,6 @@ namespace Warehouse.Api.Controllers
         }
 
         [HttpGet("{id:guid}")]
-        [Authorize]
         public async Task<ActionResult<Response<GetCategoryByIdResponse>>> GetById(
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
@@ -83,7 +82,6 @@ namespace Warehouse.Api.Controllers
         }
 
         [HttpPost("create")]
-        [Authorize]
         public async Task<ActionResult<Response<CreateCategoryResponse>>> CreateCategory(
             [FromBody] CreateCategoryRequest request,
             CancellationToken cancellationToken)
@@ -108,7 +106,6 @@ namespace Warehouse.Api.Controllers
         }
 
         [HttpPut("update")]
-        [Authorize]
         public async Task<ActionResult<Response<UpdateCategoryResponse>>> UpdateCategory(
             [FromBody] UpdateCategoryRequest request,
             CancellationToken cancellationToken)
@@ -133,7 +130,6 @@ namespace Warehouse.Api.Controllers
         }
 
         [HttpDelete("delete")]
-        [Authorize]
         public async Task<ActionResult<Response<DeleteCategoryResponse>>> DeleteCategory(
             [FromBody] DeleteCategoryRequest request,
             CancellationToken cancellationToken)
