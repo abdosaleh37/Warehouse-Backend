@@ -40,6 +40,7 @@ namespace Warehouse.DataAccess.Services.CategoryService
             var categories = await _context.Categories
                 .AsNoTracking()
                 .Include(c => c.Warehouse)
+                .Include(c => c.Sections)
                 .Where(c => c.Warehouse.UserId == userId)
                 .ToListAsync(cancellationToken);
 

@@ -11,13 +11,22 @@ namespace Warehouse.Entities.Shared.ResponseHandling
             return string.Join("; ", failures.Select(f => f.ErrorMessage).Distinct());
         }
 
-        //public static Guid? GetUserId(this ClaimsPrincipal userClaims)
-        //{
-        //    var userIdString = userClaims.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        public static bool TryGetUserId(this ClaimsPrincipal? user, out Guid userId)
+        {
+            userId = Guid.Empty;
+            if (user == null)
+                return false;
 
-        //    return string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out Guid userId);
-        //}
+            var userIdString = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                               ?? user.FindFirst("sub")?.Value;
+
+            if (string.IsNullOrWhiteSpace(userIdString) || !Guid.TryParse(userIdString, out userId))
+            {
+                userId = Guid.Empty;
+                return false;
+            }
+
+            return true;
+        }
     }
 }
-
-
