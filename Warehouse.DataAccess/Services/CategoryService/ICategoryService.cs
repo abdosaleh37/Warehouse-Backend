@@ -1,6 +1,7 @@
 ﻿using Warehouse.Entities.DTO.Category.Create;
 using Warehouse.Entities.DTO.Category.GetAll;
 using Warehouse.Entities.DTO.Category.GetById;
+using Warehouse.Entities.DTO.Category.Update;
 using Warehouse.Entities.Shared.ResponseHandling;
 
 namespace Warehouse.DataAccess.Services.CategoryService
@@ -19,6 +20,11 @@ namespace Warehouse.DataAccess.Services.CategoryService
         Task<Response<CreateCategoryResponse>> CreateAsync(
             Guid userId,
             CreateCategoryRequest request, 
+            CancellationToken cancellationToken);
+
+        Task<Response<UpdateCategoryResponse>> UpdateAsync(
+            Guid userId,
+            UpdateCategoryRequest request,
             CancellationToken cancellationToken);
     }
 }

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Warehouse.Entities.DTO.Category.Create
+﻿namespace Warehouse.Entities.DTO.Category.Create
 {
     public class CreateCategoryResponse
     {
