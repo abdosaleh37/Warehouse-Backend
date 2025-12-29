@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.DataAccess.Mappings;
 using Warehouse.DataAccess.Services.AuthService;
+using Warehouse.DataAccess.Services.CategoryService;
 using Warehouse.DataAccess.Services.ItemService;
 using Warehouse.DataAccess.Services.ItemVoucherService;
 using Warehouse.DataAccess.Services.SectionService;
@@ -84,6 +85,7 @@ public static class DataAccessServiceCollectionExtensions
         services.AddScoped<ITokenStoreService, TokenStoreService>();
         
         // Warehouse services
+        services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ISectionService, SectionService>();
         services.AddScoped<IItemService, ItemService>();
         services.AddScoped<IItemVoucherService, ItemVoucherService>();

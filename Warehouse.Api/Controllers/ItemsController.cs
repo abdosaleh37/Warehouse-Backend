@@ -52,7 +52,7 @@ public class ItemsController : ControllerBase
         var validationResult = await _getItemsOfSectionValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
-            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            string errors = validationResult.Errors.FlattenErrors();
             _logger.LogWarning("Invalid get items of section request: {Errors}", validationResult.Errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
@@ -69,7 +69,7 @@ public class ItemsController : ControllerBase
         var validationResult = await _getByIdValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
-            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            string errors = validationResult.Errors.FlattenErrors();
             _logger.LogWarning("Invalid get items of section request: {Errors}", validationResult.Errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
@@ -86,7 +86,7 @@ public class ItemsController : ControllerBase
         var validationResult = await _createItemValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
-            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            string errors = validationResult.Errors.FlattenErrors();
             _logger.LogWarning("Invalid create item request: {Errors}", validationResult.Errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
@@ -103,7 +103,7 @@ public class ItemsController : ControllerBase
         var validationResult = await _updateItemValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
-            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            string errors = validationResult.Errors.FlattenErrors();
             _logger.LogWarning("Invalid create item request: {Errors}", validationResult.Errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
@@ -120,7 +120,7 @@ public class ItemsController : ControllerBase
         var validationResult = await _deleteItemValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
-            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            string errors = validationResult.Errors.FlattenErrors();
             _logger.LogWarning("Invalid create item request: {Errors}", validationResult.Errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));

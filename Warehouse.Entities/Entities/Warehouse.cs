@@ -7,5 +7,5 @@ public class Warehouse
     public Guid UserId { get; set; }
     public ApplicationUser? User { get; set; }
 
-    public virtual ICollection<Section> Sections { get; set; } = new List<Section>();
+    public virtual ICollection<Category> Categories { get; set; } = new List<Category>();
 }

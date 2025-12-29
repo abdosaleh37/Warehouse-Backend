@@ -17,7 +17,11 @@ public class AuthController : ControllerBase
     private readonly ResponseHandler _responseHandler;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService, IValidator<RegisterRequest> registerValidator, IValidator<LoginRequest> loginValidator, ResponseHandler responseHandler, ILogger<AuthController> logger)
+    public AuthController(IAuthService authService, 
+        IValidator<RegisterRequest> registerValidator, 
+        IValidator<LoginRequest> loginValidator, 
+        ResponseHandler responseHandler, 
+        ILogger<AuthController> logger)
     {
         _authService = authService;
         _registerValidator = registerValidator;
@@ -27,12 +31,14 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
-    public async Task<ActionResult<Response<RegisterResponse>>> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<Response<RegisterResponse>>> Register(
+        [FromBody] RegisterRequest request, 
+        CancellationToken cancellationToken)
     {
         var validationResult = await _registerValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
-            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            string errors = validationResult.Errors.FlattenErrors();
             _logger.LogWarning("Invalid registration request: {Errors}", validationResult.Errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
@@ -43,12 +49,14 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    public async Task<ActionResult<Response<LoginResponse>>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<Response<LoginResponse>>> Login(
+        [FromBody] LoginRequest request, 
+        CancellationToken cancellationToken)
     {
         var validationResult = await _loginValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
-            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            string errors = validationResult.Errors.FlattenErrors();
             _logger.LogWarning("Invalid login request: {Errors}", validationResult.Errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
@@ -59,7 +67,8 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("refresh-token")]
-    public async Task<ActionResult<Response<RefreshTokenResponse>>> RefreshToken([FromBody] RefreshTokenRequest request)
+    public async Task<ActionResult<Response<RefreshTokenResponse>>> RefreshToken(
+        [FromBody] RefreshTokenRequest request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.RefreshToken))
         {

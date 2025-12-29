@@ -28,5 +28,11 @@ public class WarehouseConfiguration : IEntityTypeConfiguration<Entities.Entities
             .WithOne(u => u.Warehouse)
             .HasForeignKey<Entities.Entities.Warehouse>(w => w.UserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // One-to-many relationship between Warehouse and Category
+        builder.HasMany(w => w.Categories)
+            .WithOne(c => c.Warehouse)
+            .HasForeignKey(c => c.WarehouseId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
