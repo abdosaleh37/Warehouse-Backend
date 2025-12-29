@@ -14,36 +14,41 @@ namespace Warehouse.DataAccess.Services.SectionService;
 
 public class SectionService : ISectionService
 {
-    private readonly WarehouseDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ResponseHandler _responseHandler;
     private readonly ILogger<SectionService> _logger;
+    private readonly IMapper _mapper;
+    private readonly WarehouseDbContext _context;
+    private readonly ResponseHandler _responseHandler;
 
     public SectionService(
-        WarehouseDbContext context, 
+        ILogger<SectionService> logger,
         IMapper mapper, 
-        ResponseHandler responseHandler,
-        ILogger<SectionService> logger)
+        WarehouseDbContext context,
+        ResponseHandler responseHandler)
     {
-        _context = context;
-        _mapper = mapper;
-        _responseHandler = responseHandler;
         _logger = logger;
+        _mapper = mapper;
+        _context = context;
+        _responseHandler = responseHandler;
     }
 
     public async Task<Response<GetAllSectionsResponse>> GetAllSectionsAsync(
+        Guid userId,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Retrieving all sections from the database.");
+        _logger.LogInformation("Retrieving all sections for user: {UserId}.", userId);
+
         var sections = await _context.Sections
             .Include(s => s.Items)
+            .Include(s => s.Category)
+                .ThenInclude(c => c.Warehouse)
+            .Where(s => s.Category.Warehouse.UserId == userId)
             .OrderBy(s => s.CreatedAt)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
         if (sections.Count == 0)
         {
-            _logger.LogWarning("No sections found in the database.");
+            _logger.LogWarning("No sections found for user: {UserId}.", userId);
             var emptyResponse = new GetAllSectionsResponse
             {
                 Sections = new List<GetAllSectionsResult>(),
@@ -64,6 +69,7 @@ public class SectionService : ISectionService
     }
 
     public async Task<Response<GetSectionByIdResponse>> GetSectionByIdAsync(
+        Guid userId,
         GetSectionByIdRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -87,6 +93,7 @@ public class SectionService : ISectionService
     }
 
     public async Task<Response<CreateSectionResponse>> CreateSectionAsync(
+        Guid userId,
         CreateSectionRequest request, 
         CancellationToken cancellationToken = default)
     {
@@ -118,6 +125,7 @@ public class SectionService : ISectionService
     }
 
     public async Task<Response<UpdateSectionResponse>> UpdateSectionAsync(
+        Guid userId,
         UpdateSectionRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -152,6 +160,7 @@ public class SectionService : ISectionService
     }
 
     public async Task<Response<DeleteSectionResponse>> DeleteSectionAsync(
+        Guid userId,
         DeleteSectionRequest request,
         CancellationToken cancellationToken = default)
     {

@@ -10,21 +10,26 @@ namespace Warehouse.DataAccess.Services.SectionService;
 public interface ISectionService
 {
     Task<Response<GetAllSectionsResponse>> GetAllSectionsAsync(
+        Guid userId,
         CancellationToken cancellationToken = default);
 
     Task<Response<GetSectionByIdResponse>> GetSectionByIdAsync(
+        Guid userId,
         GetSectionByIdRequest request,
         CancellationToken cancellationToken = default);
 
     Task<Response<CreateSectionResponse>> CreateSectionAsync(
+        Guid userId,
         CreateSectionRequest request, 
         CancellationToken cancellationToken = default);
 
     Task<Response<UpdateSectionResponse>> UpdateSectionAsync(
+        Guid userId,
         UpdateSectionRequest request,
         CancellationToken cancellationToken = default);
 
     Task<Response<DeleteSectionResponse>> DeleteSectionAsync(
+        Guid userId,
         DeleteSectionRequest request,
         CancellationToken cancellationToken = default);
 }
