@@ -6,6 +6,7 @@ using Warehouse.Entities.DTO.Section.Create;
 using Warehouse.Entities.DTO.Section.Delete;
 using Warehouse.Entities.DTO.Section.GetAll;
 using Warehouse.Entities.DTO.Section.GetById;
+using Warehouse.Entities.DTO.Section.GetSectionsOfCategory;
 using Warehouse.Entities.DTO.Section.Update;
 using Warehouse.Entities.Shared.ResponseHandling;
 
@@ -18,6 +19,7 @@ public class SectionsController : ControllerBase
     private readonly ResponseHandler _responseHandler;
     private readonly ILogger<SectionsController> _logger;
     private readonly ISectionService _sectionService;
+    private readonly IValidator<GetSectionsOfCategoryRequest> _getSectionsOfCategoryValidator;
     private readonly IValidator<GetSectionByIdRequest> _getByIdValidator;
     private readonly IValidator<CreateSectionRequest> _createValidator;
     private readonly IValidator<UpdateSectionRequest> _updateValidator;
@@ -27,6 +29,7 @@ public class SectionsController : ControllerBase
         ResponseHandler responseHandler,
         ILogger<SectionsController> logger,
         ISectionService sectionService,
+        IValidator<GetSectionsOfCategoryRequest> getSectionsOfCategoryValidator,
         IValidator<GetSectionByIdRequest> getByIdValidator,
         IValidator<CreateSectionRequest> createValidator,
         IValidator<UpdateSectionRequest> updateValidator,
@@ -35,6 +38,7 @@ public class SectionsController : ControllerBase
         _responseHandler = responseHandler;
         _logger = logger;
         _sectionService = sectionService;
+        _getSectionsOfCategoryValidator = getSectionsOfCategoryValidator;
         _getByIdValidator = getByIdValidator;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
@@ -78,6 +82,31 @@ public class SectionsController : ControllerBase
                 _responseHandler.BadRequest<object>(errors));
         }
         var response = await _sectionService.GetSectionByIdAsync(userId, request, cancellationToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpGet("category/{id:guid}")]
+    [Authorize]
+    public async Task<ActionResult<Response<GetSectionsOfCategoryResponse>>> GetSectionsOfCategory(
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
+        var request = new GetSectionsOfCategoryRequest { CategoryId = id };
+        var validationResult = await _getSectionsOfCategoryValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = validationResult.Errors.FlattenErrors();
+            _logger.LogWarning("Invalid section get request: {Errors}", errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+        var response = await _sectionService.GetSectionsOfCategoryAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 

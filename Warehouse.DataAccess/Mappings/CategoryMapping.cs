@@ -18,7 +18,6 @@ namespace Warehouse.DataAccess.Mappings
                 .Map(dest => dest.WarehouseName, src => src.Warehouse.Name)
                 .Map(dest => dest.SectionCount, src => src.Sections.Count);
 
-
             config.NewConfig<Category, GetCategoryByIdResponse>()
                 .Map(dest => dest.Id, src => src.Id)
                 .Map(dest => dest.Name, src => src.Name)
@@ -26,7 +25,6 @@ namespace Warehouse.DataAccess.Mappings
                 .Map(dest => dest.WarehouseName, src => src.Warehouse.Name)
                 .Map(dest => dest.CreatedAt, src => src.CreatedAt)
                 .Map(dest => dest.SectionCount, src => src.Sections.Count);
-
 
             config.NewConfig<Category, CreateCategoryResponse>()
                 .Map(dest => dest.Id, src => src.Id)

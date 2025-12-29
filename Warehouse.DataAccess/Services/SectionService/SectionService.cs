@@ -6,6 +6,7 @@ using Warehouse.Entities.DTO.Section.Create;
 using Warehouse.Entities.DTO.Section.Delete;
 using Warehouse.Entities.DTO.Section.GetAll;
 using Warehouse.Entities.DTO.Section.GetById;
+using Warehouse.Entities.DTO.Section.GetSectionsOfCategory;
 using Warehouse.Entities.DTO.Section.Update;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
@@ -65,6 +66,58 @@ public class SectionService : ISectionService
         };
         
         _logger.LogInformation("Successfully retrieved {TotalSections} sections.", response.TotalSections);
+        return _responseHandler.Success(response, "Sections retrieved successfully.");
+    }
+
+    public async Task<Response<GetSectionsOfCategoryResponse>> GetSectionsOfCategoryAsync(
+        Guid userId,
+        GetSectionsOfCategoryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Retrieving all sections for category: {CategoryId}.", request.CategoryId);
+
+        var category = await _context.Categories
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.Warehouse.UserId == userId, cancellationToken);
+
+        if (category == null)
+        {
+            _logger.LogWarning("Category with Id: {CategoryId} not found for user: {UserId}", 
+                request.CategoryId, userId);
+            return _responseHandler.NotFound<GetSectionsOfCategoryResponse>("Category not found.");
+        }
+
+        var sections = await _context.Sections
+            .Include(s => s.Items)
+            .Include(s => s.Category)
+            .Where(s => s.CategoryId == request.CategoryId)
+            .OrderBy(s => s.CreatedAt)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        if (sections.Count == 0)
+        {
+            _logger.LogWarning("No sections found in category: {CategoryId}.", request.CategoryId);
+            var emptyResponse = new GetSectionsOfCategoryResponse
+            {
+                Sections = new List<GetSectionsOfCategoryResult>(),
+                TotalCount = 0,
+                CategoryId = category.Id,
+                CategoryName = category.Name
+            };
+            return _responseHandler.Success(emptyResponse, "No sections found.");
+        }
+
+        var sectionResults = _mapper.Map<List<GetSectionsOfCategoryResult>>(sections);
+        var response = new GetSectionsOfCategoryResponse
+        {
+            Sections = sectionResults,
+            TotalCount = sectionResults.Count,
+            CategoryId = category.Id,
+            CategoryName = category.Name
+        };
+
+        _logger.LogInformation("Successfully retrieved {TotalCount} sections.", response.TotalCount);
         return _responseHandler.Success(response, "Sections retrieved successfully.");
     }
 
