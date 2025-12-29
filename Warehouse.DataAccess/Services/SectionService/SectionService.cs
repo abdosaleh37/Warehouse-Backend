@@ -6,6 +6,7 @@ using Warehouse.Entities.DTO.Section.Create;
 using Warehouse.Entities.DTO.Section.Delete;
 using Warehouse.Entities.DTO.Section.GetAll;
 using Warehouse.Entities.DTO.Section.GetById;
+using Warehouse.Entities.DTO.Section.GetSectionsOfCategory;
 using Warehouse.Entities.DTO.Section.Update;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
@@ -14,36 +15,41 @@ namespace Warehouse.DataAccess.Services.SectionService;
 
 public class SectionService : ISectionService
 {
-    private readonly WarehouseDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly ResponseHandler _responseHandler;
     private readonly ILogger<SectionService> _logger;
+    private readonly IMapper _mapper;
+    private readonly WarehouseDbContext _context;
+    private readonly ResponseHandler _responseHandler;
 
     public SectionService(
-        WarehouseDbContext context, 
+        ILogger<SectionService> logger,
         IMapper mapper, 
-        ResponseHandler responseHandler,
-        ILogger<SectionService> logger)
+        WarehouseDbContext context,
+        ResponseHandler responseHandler)
     {
-        _context = context;
-        _mapper = mapper;
-        _responseHandler = responseHandler;
         _logger = logger;
+        _mapper = mapper;
+        _context = context;
+        _responseHandler = responseHandler;
     }
 
     public async Task<Response<GetAllSectionsResponse>> GetAllSectionsAsync(
+        Guid userId,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Retrieving all sections from the database.");
+        _logger.LogInformation("Retrieving all sections for user: {UserId}.", userId);
+
         var sections = await _context.Sections
             .Include(s => s.Items)
+            .Include(s => s.Category)
+                .ThenInclude(c => c.Warehouse)
+            .Where(s => s.Category.Warehouse.UserId == userId)
             .OrderBy(s => s.CreatedAt)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
         if (sections.Count == 0)
         {
-            _logger.LogWarning("No sections found in the database.");
+            _logger.LogWarning("No sections found for user: {UserId}.", userId);
             var emptyResponse = new GetAllSectionsResponse
             {
                 Sections = new List<GetAllSectionsResult>(),
@@ -63,21 +69,76 @@ public class SectionService : ISectionService
         return _responseHandler.Success(response, "Sections retrieved successfully.");
     }
 
+    public async Task<Response<GetSectionsOfCategoryResponse>> GetSectionsOfCategoryAsync(
+        Guid userId,
+        GetSectionsOfCategoryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Retrieving all sections for category: {CategoryId}.", request.CategoryId);
+
+        var category = await _context.Categories
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.Warehouse.UserId == userId, cancellationToken);
+
+        if (category == null)
+        {
+            _logger.LogWarning("Category with Id: {CategoryId} not found for user: {UserId}", 
+                request.CategoryId, userId);
+            return _responseHandler.NotFound<GetSectionsOfCategoryResponse>("Category not found.");
+        }
+
+        var sections = await _context.Sections
+            .Include(s => s.Items)
+            .Include(s => s.Category)
+            .Where(s => s.CategoryId == request.CategoryId)
+            .OrderBy(s => s.CreatedAt)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        if (sections.Count == 0)
+        {
+            _logger.LogWarning("No sections found in category: {CategoryId}.", request.CategoryId);
+            var emptyResponse = new GetSectionsOfCategoryResponse
+            {
+                Sections = new List<GetSectionsOfCategoryResult>(),
+                TotalCount = 0,
+                CategoryId = category.Id,
+                CategoryName = category.Name
+            };
+            return _responseHandler.Success(emptyResponse, "No sections found.");
+        }
+
+        var sectionResults = _mapper.Map<List<GetSectionsOfCategoryResult>>(sections);
+        var response = new GetSectionsOfCategoryResponse
+        {
+            Sections = sectionResults,
+            TotalCount = sectionResults.Count,
+            CategoryId = category.Id,
+            CategoryName = category.Name
+        };
+
+        _logger.LogInformation("Successfully retrieved {TotalCount} sections.", response.TotalCount);
+        return _responseHandler.Success(response, "Sections retrieved successfully.");
+    }
+
     public async Task<Response<GetSectionByIdResponse>> GetSectionByIdAsync(
+        Guid userId,
         GetSectionByIdRequest request,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Retrieving section with Id: {SectionId}", request.Id);
         var section = await _context.Sections
             .Include(s => s.Items)
+            .Include(s => s.Category)
+                .ThenInclude(c => c.Warehouse)
             .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
+            .FirstOrDefaultAsync(s => s.Id == request.Id && s.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (section == null)
         {
             _logger.LogWarning("Section with Id: {SectionId} not found", request.Id);
             return _responseHandler.NotFound<GetSectionByIdResponse>(
-                $"Section with Id {request.Id} not found.");
+                $"Section not found.");
         }
 
         var response = _mapper.Map<GetSectionByIdResponse>(section);
@@ -87,16 +148,29 @@ public class SectionService : ISectionService
     }
 
     public async Task<Response<CreateSectionResponse>> CreateSectionAsync(
+        Guid userId,
         CreateSectionRequest request, 
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Creating a new section with name: {SectionName}", request.Name);
 
+        var category = await _context.Categories
+            .Include(c => c.Warehouse)
+            .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.Warehouse.UserId == userId, cancellationToken);
+
+        if (category == null)
+        {
+            _logger.LogWarning("Category with Id: {CategoryId} not found for user: {UserId}", 
+                request.CategoryId, userId);
+            return _responseHandler.NotFound<CreateSectionResponse>("Category not found.");
+        }
+
         var section = new Section
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            CategoryId = category.Id
         };
 
         try
@@ -118,18 +192,22 @@ public class SectionService : ISectionService
     }
 
     public async Task<Response<UpdateSectionResponse>> UpdateSectionAsync(
+        Guid userId,
         UpdateSectionRequest request,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Updating an existing section with Id: {SectionId}", request.Id);
 
-        var section = await _context.Sections.FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
+        var section = await _context.Sections
+            .Include(s => s.Category)
+                .ThenInclude(c => c.Warehouse)
+            .FirstOrDefaultAsync(s => s.Id == request.Id && s.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (section == null)
         {
             _logger.LogWarning("Section with Id: {SectionId} not found", request.Id);
             return _responseHandler.NotFound<UpdateSectionResponse>(
-                $"Section with Id {request.Id} not found.");
+                $"Section not found.");
         }
 
         section.Name = request.Name;
@@ -152,19 +230,22 @@ public class SectionService : ISectionService
     }
 
     public async Task<Response<DeleteSectionResponse>> DeleteSectionAsync(
+        Guid userId,
         DeleteSectionRequest request,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Deleting section with Id: {SectionId}", request.Id);
         var section = await _context.Sections
             .Include(s => s.Items)
-            .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
+            .Include(s => s.Category)
+                .ThenInclude(c => c.Warehouse)
+            .FirstOrDefaultAsync(s => s.Id == request.Id && s.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (section == null)
         {
             _logger.LogWarning("Section with Id: {SectionId} not found", request.Id);
             return _responseHandler.NotFound<DeleteSectionResponse>(
-                $"Section with Id {request.Id} not found.");
+                $"Section not found.");
         }
 
         if (section.Items.Any())

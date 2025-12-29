@@ -42,6 +42,7 @@ namespace Warehouse.DataAccess.Services.CategoryService
                 .Include(c => c.Warehouse)
                 .Include(c => c.Sections)
                 .Where(c => c.Warehouse.UserId == userId)
+                .OrderBy(c => c.CreatedAt)
                 .ToListAsync(cancellationToken);
 
             if (categories.Count == 0)

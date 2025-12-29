@@ -6,6 +6,7 @@ using Warehouse.Entities.DTO.Section.Create;
 using Warehouse.Entities.DTO.Section.Delete;
 using Warehouse.Entities.DTO.Section.GetAll;
 using Warehouse.Entities.DTO.Section.GetById;
+using Warehouse.Entities.DTO.Section.GetSectionsOfCategory;
 using Warehouse.Entities.DTO.Section.Update;
 using Warehouse.Entities.Shared.ResponseHandling;
 
@@ -16,9 +17,9 @@ namespace Warehouse.Api.Controllers;
 public class SectionsController : ControllerBase
 {
     private readonly ResponseHandler _responseHandler;
-    private readonly ISectionService _sectionService;
     private readonly ILogger<SectionsController> _logger;
-    private readonly IValidator<GetAllSectionsRequest> _getAllValidator;
+    private readonly ISectionService _sectionService;
+    private readonly IValidator<GetSectionsOfCategoryRequest> _getSectionsOfCategoryValidator;
     private readonly IValidator<GetSectionByIdRequest> _getByIdValidator;
     private readonly IValidator<CreateSectionRequest> _createValidator;
     private readonly IValidator<UpdateSectionRequest> _updateValidator;
@@ -26,18 +27,18 @@ public class SectionsController : ControllerBase
 
     public SectionsController(
         ResponseHandler responseHandler,
-        ISectionService sectionService,
         ILogger<SectionsController> logger,
-        IValidator<GetAllSectionsRequest> getAllValidator,
+        ISectionService sectionService,
+        IValidator<GetSectionsOfCategoryRequest> getSectionsOfCategoryValidator,
         IValidator<GetSectionByIdRequest> getByIdValidator,
         IValidator<CreateSectionRequest> createValidator,
         IValidator<UpdateSectionRequest> updateValidator,
         IValidator<DeleteSectionRequest> deleteValidator)
     {
         _responseHandler = responseHandler;
-        _sectionService = sectionService;
         _logger = logger;
-        _getAllValidator = getAllValidator;
+        _sectionService = sectionService;
+        _getSectionsOfCategoryValidator = getSectionsOfCategoryValidator;
         _getByIdValidator = getByIdValidator;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
@@ -45,78 +46,139 @@ public class SectionsController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize]
     public async Task<ActionResult<Response<GetAllSectionsResponse>>> GetAllSections(
         CancellationToken cancellationToken)
     {
-        var response = await _sectionService.GetAllSectionsAsync(cancellationToken);
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
+        var response = await _sectionService.GetAllSectionsAsync(userId, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 
-    [HttpGet("id")]
+    [HttpGet("{id:guid}")]
+    [Authorize]
     public async Task<ActionResult<Response<GetSectionByIdResponse>>> GetSectionById(
-        [FromQuery] GetSectionByIdRequest request,
+        [FromRoute] Guid id,
         CancellationToken cancellationToken)
     {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
+        var request = new GetSectionByIdRequest { Id = id };
         var validationResult = await _getByIdValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
             string errors = validationResult.Errors.FlattenErrors();
-            _logger.LogWarning("Invalid section get-by-id request: {Errors}", validationResult.Errors);
+            _logger.LogWarning("Invalid section get-by-id request: {Errors}", errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
         }
-        var response = await _sectionService.GetSectionByIdAsync(request, cancellationToken);
+        var response = await _sectionService.GetSectionByIdAsync(userId, request, cancellationToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpGet("category/{id:guid}")]
+    [Authorize]
+    public async Task<ActionResult<Response<GetSectionsOfCategoryResponse>>> GetSectionsOfCategory(
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
+        var request = new GetSectionsOfCategoryRequest { CategoryId = id };
+        var validationResult = await _getSectionsOfCategoryValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = validationResult.Errors.FlattenErrors();
+            _logger.LogWarning("Invalid section get request: {Errors}", errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+        var response = await _sectionService.GetSectionsOfCategoryAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 
     [HttpPost("create")]
+    [Authorize]
     public async Task<ActionResult<Response<CreateSectionResponse>>> CreateSection(
         [FromBody] CreateSectionRequest request,
         CancellationToken cancellationToken)
     {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
         var validationResult = await _createValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
             string errors = validationResult.Errors.FlattenErrors();
-            _logger.LogWarning("Invalid section creation request: {Errors}", validationResult.Errors);
+            _logger.LogWarning("Invalid section creation request: {Errors}", errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
         }
-        var response = await _sectionService.CreateSectionAsync(request, cancellationToken);
+        var response = await _sectionService.CreateSectionAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 
     [HttpPut("update")]
+    [Authorize]
     public async Task<ActionResult<Response<UpdateSectionResponse>>> UpdateSection(
         [FromBody] UpdateSectionRequest request,
         CancellationToken cancellationToken)
     {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
         var validationResult = await _updateValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
             string errors = validationResult.Errors.FlattenErrors();
-            _logger.LogWarning("Invalid section updating request: {Errors}", validationResult.Errors);
+            _logger.LogWarning("Invalid section updating request: {Errors}", errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
         }
-        var response = await _sectionService.UpdateSectionAsync(request, cancellationToken);
+        var response = await _sectionService.UpdateSectionAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 
     [HttpDelete("delete")]
+    [Authorize]
     public async Task<ActionResult<Response<DeleteSectionResponse>>> DeleteSection(
         [FromBody] DeleteSectionRequest request,
         CancellationToken cancellationToken)
     {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
         var validationResult = await _deleteValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
             string errors = validationResult.Errors.FlattenErrors();
-            _logger.LogWarning("Invalid section deleting request: {Errors}", validationResult.Errors);
+            _logger.LogWarning("Invalid section deleting request: {Errors}", errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
         }
-        var response = await _sectionService.DeleteSectionAsync(request, cancellationToken);
+        var response = await _sectionService.DeleteSectionAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 

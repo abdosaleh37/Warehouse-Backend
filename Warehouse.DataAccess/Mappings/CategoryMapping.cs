@@ -14,27 +14,28 @@ namespace Warehouse.DataAccess.Mappings
             config.NewConfig<Category, GetAllCategoriesResult>()
                 .Map(dest => dest.Id, src => src.Id)
                 .Map(dest => dest.Name, src => src.Name)
+                .Map(dest => dest.WarehouseId, src => src.WarehouseId)
+                .Map(dest => dest.WarehouseName, src => src.Warehouse.Name)
                 .Map(dest => dest.SectionCount, src => src.Sections.Count);
-
 
             config.NewConfig<Category, GetCategoryByIdResponse>()
                 .Map(dest => dest.Id, src => src.Id)
                 .Map(dest => dest.Name, src => src.Name)
                 .Map(dest => dest.WarehouseId, src => src.WarehouseId)
+                .Map(dest => dest.WarehouseName, src => src.Warehouse.Name)
                 .Map(dest => dest.CreatedAt, src => src.CreatedAt)
                 .Map(dest => dest.SectionCount, src => src.Sections.Count);
-
 
             config.NewConfig<Category, CreateCategoryResponse>()
                 .Map(dest => dest.Id, src => src.Id)
                 .Map(dest => dest.Name, src => src.Name)
-                .Map(dest => dest.CreatedAt, src => DateOnly.FromDateTime(src.CreatedAt))
+                .Map(dest => dest.CreatedAt, src => src.CreatedAt)
                 .Map(dest => dest.WarehouseId, src => src.WarehouseId);
 
             config.NewConfig<Category, UpdateCategoryResponse>()
                 .Map(dest => dest.Id, src => src.Id)
                 .Map(dest => dest.Name, src => src.Name)
-                .Map(dest => dest.CreatedAt, src => DateOnly.FromDateTime(src.CreatedAt))
+                .Map(dest => dest.CreatedAt, src => src.CreatedAt)
                 .Map(dest => dest.WarehouseId, src => src.WarehouseId);
         }
     }

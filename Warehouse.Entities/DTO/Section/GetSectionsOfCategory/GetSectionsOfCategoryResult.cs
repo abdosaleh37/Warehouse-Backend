@@ -1,10 +1,11 @@
-﻿namespace Warehouse.Entities.DTO.Category.Update
+﻿namespace Warehouse.Entities.DTO.Section.GetSectionsOfCategory
 {
-    public class UpdateCategoryResponse
+    public class GetSectionsOfCategoryResult
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
-        public Guid WarehouseId { get; set; }
+        public int ItemCount { get; set; }
+
     }
 }
