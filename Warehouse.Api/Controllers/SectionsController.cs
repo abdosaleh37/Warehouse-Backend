@@ -60,7 +60,7 @@ public class SectionsController : ControllerBase
         var validationResult = await _getByIdValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
-            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            string errors = validationResult.Errors.FlattenErrors();
             _logger.LogWarning("Invalid section get-by-id request: {Errors}", validationResult.Errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
@@ -77,7 +77,7 @@ public class SectionsController : ControllerBase
         var validationResult = await _createValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
-            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            string errors = validationResult.Errors.FlattenErrors();
             _logger.LogWarning("Invalid section creation request: {Errors}", validationResult.Errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
@@ -94,7 +94,7 @@ public class SectionsController : ControllerBase
         var validationResult = await _updateValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
-            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            string errors = validationResult.Errors.FlattenErrors();
             _logger.LogWarning("Invalid section updating request: {Errors}", validationResult.Errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
@@ -111,7 +111,7 @@ public class SectionsController : ControllerBase
         var validationResult = await _deleteValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
-            string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+            string errors = validationResult.Errors.FlattenErrors();
             _logger.LogWarning("Invalid section deleting request: {Errors}", validationResult.Errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));

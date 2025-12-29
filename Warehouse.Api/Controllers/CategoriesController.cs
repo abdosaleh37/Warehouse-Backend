@@ -1,7 +1,6 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 using Warehouse.DataAccess.Services.CategoryService;
 using Warehouse.Entities.DTO.Category.Create;
 using Warehouse.Entities.DTO.Category.Delete;
@@ -73,7 +72,7 @@ namespace Warehouse.Api.Controllers
             var validationResult = await _getCategoryByIdValidator.ValidateAsync(request, cancellationToken);
             if (!validationResult.IsValid)
             {
-                string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+                string errors = validationResult.Errors.FlattenErrors();
                 _logger.LogWarning("Invalid get a category request: {Errors}", validationResult.Errors);
                 return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                     _responseHandler.BadRequest<object>(errors));
@@ -98,7 +97,7 @@ namespace Warehouse.Api.Controllers
             var validationResult = await _createCategoryValidator.ValidateAsync(request, cancellationToken);
             if (!validationResult.IsValid)
             {
-                string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+                string errors = validationResult.Errors.FlattenErrors();
                 _logger.LogWarning("Invalid create category request: {Errors}", validationResult.Errors);
                 return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                     _responseHandler.BadRequest<object>(errors));
@@ -123,7 +122,7 @@ namespace Warehouse.Api.Controllers
             var validationResult = await _updateCategoryValidator.ValidateAsync(request, cancellationToken);
             if (!validationResult.IsValid)
             {
-                string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+                string errors = validationResult.Errors.FlattenErrors();
                 _logger.LogWarning("Invalid update category request: {Errors}", validationResult.Errors);
                 return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                     _responseHandler.BadRequest<object>(errors));
@@ -148,7 +147,7 @@ namespace Warehouse.Api.Controllers
             var validationResult = await _deleteCategoryValidator.ValidateAsync(request, cancellationToken);
             if (!validationResult.IsValid)
             {
-                string errors = ValidationHelper.FlattenErrors(validationResult.Errors);
+                string errors = validationResult.Errors.FlattenErrors();
                 _logger.LogWarning("Invalid delete category request: {Errors}", validationResult.Errors);
                 return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                     _responseHandler.BadRequest<object>(errors));
