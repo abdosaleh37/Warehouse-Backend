@@ -2,7 +2,8 @@ using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Warehouse.DataAccess.ApplicationDbContext;
-using Warehouse.Entities.DTO.ItemVoucher;
+using Warehouse.Entities.DTO.ItemVoucher.GetById;
+using Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem;
 using Warehouse.Entities.Shared.ResponseHandling;
 
 namespace Warehouse.DataAccess.Services.ItemVoucherService;
@@ -93,5 +94,30 @@ public class ItemVoucherService : IItemVoucherService
 
         _logger.LogInformation("Retrieved {VoucherCount} vouchers for item {ItemId}", voucherResults.Count, request.ItemId);
         return _responseHandler.Success(response, "Vouchers retrieved successfully.");
+    }
+
+    public async Task<Response<GetVoucherByIdResponse>> GetVoucherByIdAsync(
+        Guid userId,
+        GetVoucherByIdRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Getting voucher {VoucherId} by user {UserId}", request.Id, userId);
+        var voucher = await _context.ItemVouchers
+            .Include(iv => iv.Item)
+                .ThenInclude(i => i.Section)
+                    .ThenInclude(s => s.Category)
+                        .ThenInclude(c => c.Warehouse)
+            .FirstOrDefaultAsync(iv => iv.Id == request.Id && iv.Item.Section.Category.Warehouse.UserId == userId, cancellationToken);
+
+        if (voucher == null)
+        {
+            _logger.LogWarning("Voucher {VoucherId} not found for user {UserId}", request.Id, userId);
+            return _responseHandler.NotFound<GetVoucherByIdResponse>("Voucher not found.");
+        }
+
+        var response = _mapper.Map<GetVoucherByIdResponse>(voucher);
+
+        _logger.LogInformation("Retrieved voucher {VoucherId} for user {UserId}", request.Id, userId);
+        return _responseHandler.Success(response, "Voucher retrieved successfully.");
     }
 }

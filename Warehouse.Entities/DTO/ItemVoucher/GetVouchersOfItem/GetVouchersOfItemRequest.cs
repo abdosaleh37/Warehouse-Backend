@@ -1,4 +1,4 @@
-﻿namespace Warehouse.Entities.DTO.ItemVoucher
+﻿namespace Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem
 {
     public class GetVouchersOfItemRequest
     {

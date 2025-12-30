@@ -1,5 +1,5 @@
 ﻿using FluentValidation;
-using Warehouse.Entities.DTO.ItemVoucher;
+using Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem;
 
 namespace Warehouse.Api.Validators.ItemVoucher
 {

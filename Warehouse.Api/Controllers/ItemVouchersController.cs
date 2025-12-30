@@ -2,7 +2,8 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Warehouse.DataAccess.Services.ItemVoucherService;
-using Warehouse.Entities.DTO.ItemVoucher;
+using Warehouse.Entities.DTO.ItemVoucher.GetById;
+using Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem;
 using Warehouse.Entities.Shared.ResponseHandling;
 
 namespace Warehouse.Api.Controllers;
@@ -16,17 +17,20 @@ public class ItemVouchersController : ControllerBase
     private readonly IItemVoucherService _itemVoucherService;
     private readonly ILogger<ItemVouchersController> _logger;
     private readonly IValidator<GetVouchersOfItemRequest> _getVouchersOfItemValidator;
+    private readonly IValidator<GetVoucherByIdRequest> _getVoucherByIdValidator;
 
     public ItemVouchersController(
         ResponseHandler responseHandler,
         ILogger<ItemVouchersController> logger,
         IItemVoucherService itemVoucherService,
-        IValidator<GetVouchersOfItemRequest> getVouchersOfItemValidator)
+        IValidator<GetVouchersOfItemRequest> getVouchersOfItemValidator,
+        IValidator<GetVoucherByIdRequest> getVoucherByIdValidator)
     {
         _responseHandler = responseHandler;
         _logger = logger;
         _itemVoucherService = itemVoucherService;
         _getVouchersOfItemValidator = getVouchersOfItemValidator;
+        _getVoucherByIdValidator = getVoucherByIdValidator;
     }
 
     [HttpGet("item/{id:guid}")]
@@ -51,6 +55,31 @@ public class ItemVouchersController : ControllerBase
         }
 
         var response = await _itemVoucherService.GetVouchersOfItemAsync(userId, request, cancellationToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpGet("{id:guid}")]
+    public ActionResult<Response<GetVoucherByIdResponse>> GetVoucherById(
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
+        var request = new GetVoucherByIdRequest { Id = id };
+        var validationResult = _getVoucherByIdValidator.Validate(request);
+        if (!validationResult.IsValid)
+        {
+            string errors = validationResult.Errors.FlattenErrors();
+            _logger.LogWarning("Invalid get voucher by id request: {Errors}", errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+
+        var response = _itemVoucherService.GetVoucherByIdAsync(userId, request, cancellationToken).Result;
         return StatusCode((int)response.StatusCode, response);
     }
 }
