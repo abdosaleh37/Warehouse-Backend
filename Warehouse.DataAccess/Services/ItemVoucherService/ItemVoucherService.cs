@@ -2,8 +2,10 @@ using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Warehouse.DataAccess.ApplicationDbContext;
+using Warehouse.Entities.DTO.ItemVoucher.Create;
 using Warehouse.Entities.DTO.ItemVoucher.GetById;
 using Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem;
+using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
 
 namespace Warehouse.DataAccess.Services.ItemVoucherService;
@@ -119,5 +121,43 @@ public class ItemVoucherService : IItemVoucherService
 
         _logger.LogInformation("Retrieved voucher {VoucherId} for user {UserId}", request.Id, userId);
         return _responseHandler.Success(response, "Voucher retrieved successfully.");
+    }
+
+    public async Task<Response<CreateVoucherResponse>> CreateVoucherAsync(
+        Guid userId,
+        CreateVoucherRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Creating voucher for item {ItemId} by user {UserId}", request.ItemId, userId);
+
+        var item = await _context.Items
+            .Include(i => i.Section)
+                .ThenInclude(s => s.Category)
+                    .ThenInclude(c => c.Warehouse)
+            .FirstOrDefaultAsync(i => i.Id == request.ItemId && i.Section.Category.Warehouse.UserId == userId, cancellationToken);
+
+        if (item == null)
+        {
+            _logger.LogWarning("Item {ItemId} not found for user {UserId}", request.ItemId, userId);
+            return _responseHandler.NotFound<CreateVoucherResponse>("Item not found.");
+        }
+
+        var voucherEntity = _mapper.Map<ItemVoucher>(request);
+
+        try
+        {
+            await _context.ItemVouchers.AddAsync(voucherEntity, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating voucher for item {ItemId} by user {UserId}", request.ItemId, userId);
+            return _responseHandler.InternalServerError<CreateVoucherResponse>("An error occurred while creating the voucher.");
+        }
+
+        var response = _mapper.Map<CreateVoucherResponse>(voucherEntity);
+
+        _logger.LogInformation("Created voucher {VoucherId} for item {ItemId} by user {UserId}", voucherEntity.Id, request.ItemId, userId);
+        return _responseHandler.Success(response, "Voucher created successfully.");
     }
 }

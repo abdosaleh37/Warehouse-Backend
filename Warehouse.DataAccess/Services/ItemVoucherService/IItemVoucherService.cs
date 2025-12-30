@@ -1,3 +1,4 @@
+using Warehouse.Entities.DTO.ItemVoucher.Create;
 using Warehouse.Entities.DTO.ItemVoucher.GetById;
 using Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem;
 using Warehouse.Entities.Shared.ResponseHandling;
@@ -14,5 +15,10 @@ public interface IItemVoucherService
     Task<Response<GetVoucherByIdResponse>> GetVoucherByIdAsync(
         Guid userId,
         GetVoucherByIdRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<Response<CreateVoucherResponse>> CreateVoucherAsync(
+        Guid userId,
+        CreateVoucherRequest request,
         CancellationToken cancellationToken = default);
 }
