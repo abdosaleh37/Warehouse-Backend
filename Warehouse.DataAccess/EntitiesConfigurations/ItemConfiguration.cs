@@ -35,7 +35,7 @@ public class ItemConfiguration : IEntityTypeConfiguration<Item>
             .IsRequired()
             .HasDefaultValue(0);
 
-        builder.Property(i => i.OpeningValue)
+        builder.Property(i => i.OpeningUnitPrice)
             .IsRequired()
             .HasPrecision(18, 2)
             .HasDefaultValue(0m);

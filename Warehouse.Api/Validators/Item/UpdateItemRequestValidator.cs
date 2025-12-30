@@ -24,8 +24,8 @@ namespace Warehouse.Api.Validators.Item
             RuleFor(x => x.OpeningQuantity)
                 .GreaterThanOrEqualTo(0).WithMessage("OpeningQuantity must be non-negative.");
 
-            RuleFor(x => x.OpeningValue)
-                .GreaterThanOrEqualTo(0).WithMessage("OpeningValue must be non-negative.");
+            RuleFor(x => x.OpeningUnitPrice)
+                .GreaterThanOrEqualTo(0).WithMessage("OpeningUnitPrice must be non-negative.");
         }
     }
 }
