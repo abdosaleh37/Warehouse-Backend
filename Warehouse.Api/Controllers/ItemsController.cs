@@ -18,7 +18,7 @@ public class ItemsController : ControllerBase
 {
     private readonly ResponseHandler _responseHandler;
     private readonly IItemService _itemService;
-    private readonly ILogger<SectionsController> _logger;
+    private readonly ILogger<ItemsController> _logger;
     private readonly IValidator<GetItemsOfSectionRequest> _getItemsOfSectionValidator;
     private readonly IValidator<GetItemByIdRequest> _getByIdValidator;
     private readonly IValidator<CreateItemRequest> _createItemValidator;
@@ -28,7 +28,7 @@ public class ItemsController : ControllerBase
     public ItemsController(
         ResponseHandler responseHandler,
         IItemService itemService,
-        ILogger<SectionsController> logger,
+        ILogger<ItemsController> logger,
         IValidator<GetItemsOfSectionRequest> getItemsOfSectionValidator,
         IValidator<GetItemByIdRequest> getByIdValidator,
         IValidator<CreateItemRequest> createItemValidator,
@@ -45,37 +45,51 @@ public class ItemsController : ControllerBase
         _deleteItemValidator = deleteItemValidator;
     }
 
-    [HttpGet("section")]
+    [HttpGet("section/{id:guid}")]
     public async Task<ActionResult<Response<GetItemsOfSectionResponse>>> GetItemsOfSection(
-        [FromQuery] GetItemsOfSectionRequest request,
+        [FromRoute] Guid id,
         CancellationToken cancellationToken)
     {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
+        var request = new GetItemsOfSectionRequest { SectionId = id };
         var validationResult = await _getItemsOfSectionValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
             string errors = validationResult.Errors.FlattenErrors();
-            _logger.LogWarning("Invalid get items of section request: {Errors}", validationResult.Errors);
+            _logger.LogWarning("Invalid get items of section request: {Errors}", errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
         }
-        var response = await _itemService.GetItemsofSectionAsync(request, cancellationToken);
+        var response = await _itemService.GetItemsofSectionAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 
-    [HttpGet("id")]
+    [HttpGet("{id:guid}")]
     public async Task<ActionResult<Response<GetItemByIdResponse>>> GetById(
-        [FromQuery] GetItemByIdRequest request,
+        [FromRoute] Guid id,
         CancellationToken cancellationToken)
     {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
+        var request = new GetItemByIdRequest { Id = id };
         var validationResult = await _getByIdValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
             string errors = validationResult.Errors.FlattenErrors();
-            _logger.LogWarning("Invalid get items of section request: {Errors}", validationResult.Errors);
+            _logger.LogWarning("Invalid get item by id request: {Errors}", errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
         }
-        var response = await _itemService.GetByIdAsync(request, cancellationToken);
+        var response = await _itemService.GetByIdAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 
@@ -84,15 +98,21 @@ public class ItemsController : ControllerBase
         [FromBody] CreateItemRequest request,
         CancellationToken cancellationToken)
     {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
         var validationResult = await _createItemValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
             string errors = validationResult.Errors.FlattenErrors();
-            _logger.LogWarning("Invalid create item request: {Errors}", validationResult.Errors);
+            _logger.LogWarning("Invalid create item request: {Errors}", errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
         }
-        var response = await _itemService.CreateItemAsync(request, cancellationToken);
+        var response = await _itemService.CreateItemAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 
@@ -101,15 +121,21 @@ public class ItemsController : ControllerBase
         [FromBody] UpdateItemRequest request,
         CancellationToken cancellationToken)
     {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
         var validationResult = await _updateItemValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
             string errors = validationResult.Errors.FlattenErrors();
-            _logger.LogWarning("Invalid create item request: {Errors}", validationResult.Errors);
+            _logger.LogWarning("Invalid update item request: {Errors}", errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
         }
-        var response = await _itemService.UpdateItemAsync(request, cancellationToken);
+        var response = await _itemService.UpdateItemAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 
@@ -118,15 +144,21 @@ public class ItemsController : ControllerBase
         [FromBody] DeleteItemRequest request,
         CancellationToken cancellationToken)
     {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
         var validationResult = await _deleteItemValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
             string errors = validationResult.Errors.FlattenErrors();
-            _logger.LogWarning("Invalid create item request: {Errors}", validationResult.Errors);
+            _logger.LogWarning("Invalid delete item request: {Errors}", errors);
             return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
                 _responseHandler.BadRequest<object>(errors));
         }
-        var response = await _itemService.DeleteItemAsync(request, cancellationToken);
+        var response = await _itemService.DeleteItemAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 

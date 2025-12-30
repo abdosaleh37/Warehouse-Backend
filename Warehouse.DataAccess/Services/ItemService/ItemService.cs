@@ -31,12 +31,16 @@ public class ItemService : IItemService
     }
 
     public async Task<Response<GetItemsOfSectionResponse>> GetItemsofSectionAsync(
+        Guid userId,
         GetItemsOfSectionRequest request,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Getting Items of section: {SectionId}", request.SectionId);
+
         var section = await _context.Sections
-            .FirstOrDefaultAsync(s => s.Id == request.SectionId, cancellationToken);
+            .Include(s => s.Category)
+                .ThenInclude(c => c.Warehouse)
+            .FirstOrDefaultAsync(s => s.Id == request.SectionId && s.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (section == null)
         {
@@ -79,15 +83,19 @@ public class ItemService : IItemService
     }
 
     public async Task<Response<GetItemByIdResponse>> GetByIdAsync(
+        Guid userId,
         GetItemByIdRequest request,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Getting item by Id: {ItemId}", request.Id);
+
         var item = await _context.Items
             .Include(i => i.Section)
+                .ThenInclude(s => s.Category)
+                    .ThenInclude(c => c.Warehouse)
             .Include(i => i.ItemVouchers)
             .AsNoTracking()
-            .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
+            .FirstOrDefaultAsync(i => i.Id == request.Id && i.Section.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (item == null)
         {
@@ -102,12 +110,16 @@ public class ItemService : IItemService
     }
 
     public async Task<Response<CreateItemResponse>> CreateItemAsync(
+        Guid userId,
         CreateItemRequest request,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Creating new item in section: {SectionId}", request.SectionId);
+
         var section = await _context.Sections
-            .FirstOrDefaultAsync(s => s.Id == request.SectionId, cancellationToken);
+            .Include(s => s.Category)
+                .ThenInclude(c => c.Warehouse)
+            .FirstOrDefaultAsync(s => s.Id == request.SectionId && s.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (section == null)
         {
@@ -126,7 +138,7 @@ public class ItemService : IItemService
             return _responseHandler.BadRequest<CreateItemResponse>("An item with the same code already exists in this section.");
         }
 
-            var newItem = _mapper.Map<Item>(request);
+        var newItem = _mapper.Map<Item>(request);
         newItem.Id = Guid.NewGuid();
         newItem.CreatedAt = DateTime.UtcNow;
 
@@ -142,19 +154,24 @@ public class ItemService : IItemService
         }
 
         var responseData = _mapper.Map<CreateItemResponse>(newItem);
+
         _logger.LogInformation("Item created successfully with Id: {ItemId} in section: {SectionId}",
             newItem.Id, request.SectionId);
         return _responseHandler.Success(responseData, "Item created successfully.");
     }
 
     public async Task<Response<UpdateItemResponse>> UpdateItemAsync(
+        Guid userId,
         UpdateItemRequest request,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Updating item: {ItemId}", request.Id);
 
         var item = await _context.Items
-            .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
+            .Include(i => i.Section)
+                .ThenInclude(s => s.Category)
+                    .ThenInclude(c => c.Warehouse)
+            .FirstOrDefaultAsync(i => i.Id == request.Id && i.Section.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (item == null)
         {
@@ -191,18 +208,24 @@ public class ItemService : IItemService
         }
 
         var responseData = _mapper.Map<UpdateItemResponse>(item);
+
         _logger.LogInformation("Item updated successfully with Id: {ItemId}", item.Id);
         return _responseHandler.Success(responseData, "Item updated successfully.");
     }
 
     public async Task<Response<DeleteItemResponse>> DeleteItemAsync(
+        Guid userId,
         DeleteItemRequest request,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Deleting item: {ItemId}", request.Id);
+
         var item = await _context.Items
+            .Include(i => i.Section)
+                .ThenInclude(s => s.Category)
+                    .ThenInclude(c => c.Warehouse)
             .Include(i => i.ItemVouchers)
-            .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
+            .FirstOrDefaultAsync(i => i.Id == request.Id && i.Section.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (item == null)
         {             
