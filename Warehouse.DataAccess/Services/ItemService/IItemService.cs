@@ -10,22 +10,27 @@ namespace Warehouse.DataAccess.Services.ItemService;
 public interface IItemService
 {
     Task<Response<GetItemsOfSectionResponse>> GetItemsofSectionAsync(
+        Guid userId,
         GetItemsOfSectionRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<Response<GetByIdResponse>> GetByIdAsync(
-        GetByIdRequest request,
+    Task<Response<GetItemByIdResponse>> GetByIdAsync(
+        Guid userId,
+        GetItemByIdRequest request,
         CancellationToken cancellationToken = default);
 
     Task<Response<CreateItemResponse>> CreateItemAsync(
+        Guid userId,
         CreateItemRequest request,
         CancellationToken cancellationToken = default);
 
     Task<Response<UpdateItemResponse>> UpdateItemAsync(
+        Guid userId,
         UpdateItemRequest request,
         CancellationToken cancellationToken = default);
 
     Task<Response<DeleteItemResponse>> DeleteItemAsync(
+        Guid userId,
         DeleteItemRequest request,
         CancellationToken cancellationToken = default);
 }

@@ -2,11 +2,11 @@
 
 namespace Warehouse.Entities.DTO.Items.GetById
 {
-    public class GetByIdResponse
+    public class GetItemByIdResponse
     {
         public Guid Id { get; set; }
         public string ItemCode { get; set; } = string.Empty;
-        public string PartNo { get; set; } = string.Empty;
+        public string? PartNo { get; set; }
         public string Description { get; set; } = string.Empty;
         public UnitOfMeasure Unit { get; set; } 
         public int OpeningQuantity { get; set; }

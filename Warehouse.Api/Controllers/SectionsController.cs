@@ -14,6 +14,7 @@ namespace Warehouse.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class SectionsController : ControllerBase
 {
     private readonly ResponseHandler _responseHandler;
@@ -46,7 +47,6 @@ public class SectionsController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize]
     public async Task<ActionResult<Response<GetAllSectionsResponse>>> GetAllSections(
         CancellationToken cancellationToken)
     {
@@ -61,7 +61,6 @@ public class SectionsController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize]
     public async Task<ActionResult<Response<GetSectionByIdResponse>>> GetSectionById(
         [FromRoute] Guid id,
         CancellationToken cancellationToken)
@@ -86,7 +85,6 @@ public class SectionsController : ControllerBase
     }
 
     [HttpGet("category/{id:guid}")]
-    [Authorize]
     public async Task<ActionResult<Response<GetSectionsOfCategoryResponse>>> GetSectionsOfCategory(
         [FromRoute] Guid id,
         CancellationToken cancellationToken)
@@ -111,7 +109,6 @@ public class SectionsController : ControllerBase
     }
 
     [HttpPost("create")]
-    [Authorize]
     public async Task<ActionResult<Response<CreateSectionResponse>>> CreateSection(
         [FromBody] CreateSectionRequest request,
         CancellationToken cancellationToken)
@@ -135,7 +132,6 @@ public class SectionsController : ControllerBase
     }
 
     [HttpPut("update")]
-    [Authorize]
     public async Task<ActionResult<Response<UpdateSectionResponse>>> UpdateSection(
         [FromBody] UpdateSectionRequest request,
         CancellationToken cancellationToken)
@@ -159,7 +155,6 @@ public class SectionsController : ControllerBase
     }
 
     [HttpDelete("delete")]
-    [Authorize]
     public async Task<ActionResult<Response<DeleteSectionResponse>>> DeleteSection(
         [FromBody] DeleteSectionRequest request,
         CancellationToken cancellationToken)

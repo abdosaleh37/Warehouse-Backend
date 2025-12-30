@@ -37,13 +37,23 @@ namespace Warehouse.DataAccess.Services.CategoryService
         {
             _logger.LogInformation("Getting all categories of user: {UserId}", userId);
 
-            var categories = await _context.Categories
+            var warehouse = await _context.Warehouses
                 .AsNoTracking()
-                .Include(c => c.Warehouse)
-                .Include(c => c.Sections)
-                .Where(c => c.Warehouse.UserId == userId)
-                .OrderBy(c => c.CreatedAt)
-                .ToListAsync(cancellationToken);
+                .FirstOrDefaultAsync(w => w.UserId == userId, cancellationToken);
+
+            if (warehouse == null)
+            {
+                _logger.LogWarning("User has no warehouse.");
+                return _responseHandler.NotFound<GetAllCategoriesResponse>("User has no warehouse.");
+            }
+
+            var categories = await _context.Categories
+            .AsNoTracking()
+            .Include(c => c.Warehouse)
+            .Include(c => c.Sections)
+            .Where(c => c.WarehouseId == warehouse.Id)
+            .OrderBy(c => c.CreatedAt)
+            .ToListAsync(cancellationToken);
 
             if (categories.Count == 0)
             {
@@ -51,7 +61,9 @@ namespace Warehouse.DataAccess.Services.CategoryService
                 return _responseHandler.Success(new GetAllCategoriesResponse
                 {
                     Categories = new List<GetAllCategoriesResult>(),
-                    TotalCount = 0
+                    TotalCount = 0,
+                    WarehouseId = warehouse.Id,
+                    WarehouseName = warehouse.Name
                 }, "No categories found.");
             }
 
@@ -59,7 +71,9 @@ namespace Warehouse.DataAccess.Services.CategoryService
             var response = new GetAllCategoriesResponse
             {
                 Categories = categoriesResult,
-                TotalCount = categoriesResult.Count
+                TotalCount = categoriesResult.Count,
+                WarehouseId = warehouse.Id,
+                WarehouseName = warehouse.Name
             };
 
             _logger.LogInformation("Categories retreived successfully.");
