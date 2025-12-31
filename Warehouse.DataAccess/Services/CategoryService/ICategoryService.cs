@@ -18,17 +18,17 @@ namespace Warehouse.DataAccess.Services.CategoryService
             GetCategoryByIdRequest request,
             CancellationToken cancellationToken);
 
-        Task<Response<CreateCategoryResponse>> CreateAsync(
+        Task<Response<CreateCategoryResponse>> CreateCategoryAsync(
             Guid userId,
             CreateCategoryRequest request, 
             CancellationToken cancellationToken);
 
-        Task<Response<UpdateCategoryResponse>> UpdateAsync(
+        Task<Response<UpdateCategoryResponse>> UpdateCategoryAsync(
             Guid userId,
             UpdateCategoryRequest request,
             CancellationToken cancellationToken);
 
-        Task<Response<DeleteCategoryResponse>> DeleteAsync(
+        Task<Response<DeleteCategoryResponse>> DeleteCategoryAsync(
             Guid userId,
             DeleteCategoryRequest request,
             CancellationToken cancellationToken);

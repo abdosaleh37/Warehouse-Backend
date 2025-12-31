@@ -7,8 +7,10 @@ using Warehouse.Entities.DTO.Category.Delete;
 using Warehouse.Entities.DTO.Category.GetAll;
 using Warehouse.Entities.DTO.Category.GetById;
 using Warehouse.Entities.DTO.Category.Update;
+using Warehouse.Entities.DTO.Section.Delete;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
+using static System.Collections.Specialized.BitVector32;
 
 namespace Warehouse.DataAccess.Services.CategoryService
 {
@@ -125,7 +127,7 @@ namespace Warehouse.DataAccess.Services.CategoryService
             return _responseHandler.Success(mapped, "Category retreived successfully.");
         }
 
-        public async Task<Response<CreateCategoryResponse>> CreateAsync(
+        public async Task<Response<CreateCategoryResponse>> CreateCategoryAsync(
             Guid userId,
             CreateCategoryRequest request, 
             CancellationToken cancellationToken)
@@ -168,7 +170,7 @@ namespace Warehouse.DataAccess.Services.CategoryService
             return _responseHandler.Success(response, "Category created successfully.");
         }
 
-        public async Task<Response<UpdateCategoryResponse>> UpdateAsync(
+        public async Task<Response<UpdateCategoryResponse>> UpdateCategoryAsync(
             Guid userId,
             UpdateCategoryRequest request,
             CancellationToken cancellationToken)
@@ -203,7 +205,7 @@ namespace Warehouse.DataAccess.Services.CategoryService
             return _responseHandler.Success(response, "Category updated successfully.");
         }
 
-        public async Task<Response<DeleteCategoryResponse>> DeleteAsync(
+        public async Task<Response<DeleteCategoryResponse>> DeleteCategoryAsync(
             Guid userId,
             DeleteCategoryRequest request,
             CancellationToken cancellationToken)
@@ -217,6 +219,17 @@ namespace Warehouse.DataAccess.Services.CategoryService
             {
                 _logger.LogWarning("Category: {CategoryId} not found.", request.Id);
                 return _responseHandler.NotFound<DeleteCategoryResponse>("Category not found.");
+            }
+
+            var hasSections = await _context.Sections
+                .AsNoTracking()
+                .AnyAsync(s => s.CategoryId == category.Id, cancellationToken);
+
+            if (hasSections)
+            {
+                _logger.LogWarning("Category: {CategoryId} has associated sections and cannot be deleted.", request.Id);
+                return _responseHandler.BadRequest<DeleteCategoryResponse>(
+                    "Category cannot be deleted because it has associated sections.");
             }
 
             try
