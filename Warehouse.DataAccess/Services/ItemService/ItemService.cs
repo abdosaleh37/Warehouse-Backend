@@ -38,8 +38,6 @@ public class ItemService : IItemService
         _logger.LogInformation("Getting Items of section: {SectionId}", request.SectionId);
 
         var section = await _context.Sections
-            .Include(s => s.Category)
-                .ThenInclude(c => c.Warehouse)
             .FirstOrDefaultAsync(s => s.Id == request.SectionId && s.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (section == null)
@@ -50,9 +48,14 @@ public class ItemService : IItemService
 
         var items = await _context.Items
             .AsNoTracking()
-            .Include(i => i.ItemVouchers)
             .Where(i => i.SectionId == request.SectionId)
             .OrderBy(i => i.CreatedAt)
+            .Select(i => new
+            {
+                Item = i,
+                NetQuantity = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => v.InQuantity - v.OutQuantity) : 0,
+                NetValue = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice) : 0m
+            })
             .ToListAsync(cancellationToken);
 
         if (items.Count == 0)
@@ -68,7 +71,13 @@ public class ItemService : IItemService
 
         }
 
-        var itemResults = _mapper.Map<List<GetItemsOfSectionResult>>(items);
+        var itemResults = items.Select(x => {
+            var mapped = _mapper.Map<GetItemsOfSectionResult>(x.Item);
+            mapped.AvailableQuantity = x.Item.OpeningQuantity + x.NetQuantity;
+            mapped.AvailableValue = (x.Item.OpeningUnitPrice * x.Item.OpeningQuantity) + x.NetValue;
+            return mapped;
+        }).ToList();
+
         var responseData = new GetItemsOfSectionResponse
         {
             SectionId = section.Id,
@@ -89,24 +98,31 @@ public class ItemService : IItemService
     {
         _logger.LogInformation("Getting item by Id: {ItemId}", request.Id);
 
-        var item = await _context.Items
-            .Include(i => i.Section)
-                .ThenInclude(s => s.Category)
-                    .ThenInclude(c => c.Warehouse)
-            .Include(i => i.ItemVouchers)
+        var itemResult = await _context.Items
             .AsNoTracking()
-            .FirstOrDefaultAsync(i => i.Id == request.Id && i.Section.Category.Warehouse.UserId == userId, cancellationToken);
+            .Where(i => i.Id == request.Id && i.Section.Category.Warehouse.UserId == userId)
+            .Select(i => new
+            {
+                Item = i,
+                SectionName = i.Section.Name,
+                NetQuantity = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => v.InQuantity - v.OutQuantity) : 0,
+                NetValue = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice) : 0m
+            })
+            .FirstOrDefaultAsync(cancellationToken);
 
-        if (item == null)
+        if (itemResult == null)
         {
             _logger.LogWarning("Item with Id: {ItemId} not found.", request.Id);
             return _responseHandler.NotFound<GetItemByIdResponse>("Item not found");
         }
 
-        var responseData = _mapper.Map<GetItemByIdResponse>(item);
+        var response = _mapper.Map<GetItemByIdResponse>(itemResult.Item);
+        response.SectionName = itemResult.SectionName;
+        response.AvailableQuantity = itemResult.Item.OpeningQuantity + itemResult.NetQuantity;
+        response.AvailableValue = (itemResult.Item.OpeningUnitPrice * itemResult.Item.OpeningQuantity) + itemResult.NetValue;
 
         _logger.LogInformation("Item with Id: {ItemId} retrieved successfully.", request.Id);
-        return _responseHandler.Success(responseData, "Item retrieved successfully.");
+        return _responseHandler.Success(response, "Item retrieved successfully.");
     }
 
     public async Task<Response<CreateItemResponse>> CreateItemAsync(
@@ -117,8 +133,7 @@ public class ItemService : IItemService
         _logger.LogInformation("Creating new item in section: {SectionId}", request.SectionId);
 
         var section = await _context.Sections
-            .Include(s => s.Category)
-                .ThenInclude(c => c.Warehouse)
+            .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == request.SectionId && s.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (section == null)
@@ -168,9 +183,6 @@ public class ItemService : IItemService
         _logger.LogInformation("Updating item: {ItemId}", request.Id);
 
         var item = await _context.Items
-            .Include(i => i.Section)
-                .ThenInclude(s => s.Category)
-                    .ThenInclude(c => c.Warehouse)
             .FirstOrDefaultAsync(i => i.Id == request.Id && i.Section.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (item == null)
@@ -221,24 +233,22 @@ public class ItemService : IItemService
         _logger.LogInformation("Deleting item: {ItemId}", request.Id);
 
         var item = await _context.Items
-            .Include(i => i.Section)
-                .ThenInclude(s => s.Category)
-                    .ThenInclude(c => c.Warehouse)
-            .Include(i => i.ItemVouchers)
             .FirstOrDefaultAsync(i => i.Id == request.Id && i.Section.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (item == null)
-        {             
+        {
             _logger.LogWarning("Item: {ItemId} not found. Cannot delete item.", request.Id);
             return _responseHandler.NotFound<DeleteItemResponse>("Item not found");
         }
 
-        if (item.ItemVouchers.Any())
+        var hasVouchers = await _context.ItemVouchers
+            .AsNoTracking()
+            .AnyAsync(iv => iv.ItemId == item.Id, cancellationToken);
+
+        if (hasVouchers)
         {
-            _logger.LogWarning("Cannot delete item with Id: {Id} because it has {VouchersCount} Vouchers",
-                request.Id, item.ItemVouchers.Count);
-            return _responseHandler.BadRequest<DeleteItemResponse>(
-                $"Cannot delete item '{item.Id}' because it contains {item.ItemVouchers.Count} vouchers(s). Please remove or reassign the vouchers first.");
+            _logger.LogWarning("Item: {ItemId} has associated vouchers. Cannot delete item.", request.Id);
+            return _responseHandler.BadRequest<DeleteItemResponse>("Cannot delete item with associated vouchers.");
         }
 
         try
