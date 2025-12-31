@@ -64,7 +64,9 @@ public class ItemVoucherService : IItemVoucherService
                 Vouchers = new List<GetVouchersOfItemResult>(),
                 TotalCount = 0,
                 ItemId = item.Id,
-                ItemDescription = item.Description
+                ItemDescription = item.Description,
+                ItemAvailableQuantity = item.OpeningQuantity,
+                ItemAvailableValue = item.OpeningUnitPrice * item.OpeningQuantity
             }, "No vouchers found.");
         }
 
@@ -93,7 +95,9 @@ public class ItemVoucherService : IItemVoucherService
             Vouchers = voucherResults,
             TotalCount = voucherResults.Count,
             ItemId = item.Id,
-            ItemDescription = item.Description
+            ItemDescription = item.Description,
+            ItemAvailableQuantity = runningQuantity,
+            ItemAvailableValue = runningValue
         };
 
         _logger.LogInformation("Retrieved {VoucherCount} vouchers for item {ItemId}", voucherResults.Count, request.ItemId);

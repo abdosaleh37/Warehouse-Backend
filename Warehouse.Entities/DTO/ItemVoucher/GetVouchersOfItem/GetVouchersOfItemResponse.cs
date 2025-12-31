@@ -7,5 +7,7 @@
 
         public Guid ItemId { get; set; }
         public string ItemDescription { get; set; } = string.Empty;
+        public int ItemAvailableQuantity { get; set; }
+        public decimal ItemAvailableValue { get; set; }
     }
 }
