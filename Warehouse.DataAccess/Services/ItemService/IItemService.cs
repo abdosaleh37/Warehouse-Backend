@@ -2,6 +2,7 @@ using Warehouse.Entities.DTO.Items.Create;
 using Warehouse.Entities.DTO.Items.Delete;
 using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
+using Warehouse.Entities.DTO.Items.GetItemsWithVouchersOfMonth;
 using Warehouse.Entities.DTO.Items.Update;
 using Warehouse.Entities.Shared.ResponseHandling;
 
@@ -17,6 +18,11 @@ public interface IItemService
     Task<Response<GetItemByIdResponse>> GetByIdAsync(
         Guid userId,
         GetItemByIdRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<Response<GetItemsWithVouchersOfMonthResponse>> GetItemsWithVouchersOfMonthAsync(
+        Guid userId,
+        GetItemsWithVouchersOfMonthRequest request,
         CancellationToken cancellationToken = default);
 
     Task<Response<CreateItemResponse>> CreateItemAsync(

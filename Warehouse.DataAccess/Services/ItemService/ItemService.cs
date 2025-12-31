@@ -6,6 +6,7 @@ using Warehouse.Entities.DTO.Items.Create;
 using Warehouse.Entities.DTO.Items.Delete;
 using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
+using Warehouse.Entities.DTO.Items.GetItemsWithVouchersOfMonth;
 using Warehouse.Entities.DTO.Items.Update;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
@@ -123,6 +124,61 @@ public class ItemService : IItemService
 
         _logger.LogInformation("Item with Id: {ItemId} retrieved successfully.", request.Id);
         return _responseHandler.Success(response, "Item retrieved successfully.");
+    }
+
+    public async Task<Response<GetItemsWithVouchersOfMonthResponse>> GetItemsWithVouchersOfMonthAsync(
+        Guid userId,
+        GetItemsWithVouchersOfMonthRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Getting items with vouchers for month: {Month}, year: {Year}", request.Month, request.Year);
+
+        var startOfMonth = new DateTime(request.Year, request.Month, 1);
+        var startOfNextMonth = startOfMonth.AddMonths(1);
+
+        var itemsWithVouchers = await _context.Items
+            .AsNoTracking()
+            .Where(i => i.Section.Category.Warehouse.UserId == userId &&
+                        i.ItemVouchers.Any(v => v.VoucherDate >= startOfMonth && v.VoucherDate < startOfNextMonth))
+            .Select(i => new GetItemsWithVouchersOfMonthResult
+            {
+                Id = i.Id,
+                ItemCode = i.ItemCode,
+                PartNo = i.PartNo,
+                Description = i.Description,
+                SectionId = i.SectionId,
+                SectionName = i.Section.Name,
+                CategoryId = i.Section.CategoryId,
+                CategoryName = i.Section.Category.Name,
+                Unit = i.Unit,
+                VouchersTotalQuantity = i.ItemVouchers
+                    .Where(v => v.VoucherDate >= startOfMonth && v.VoucherDate < startOfNextMonth)
+                    .Sum(v => v.InQuantity - v.OutQuantity),
+                VouchersTotalValue = i.ItemVouchers
+                    .Where(v => v.VoucherDate >= startOfMonth && v.VoucherDate < startOfNextMonth)
+                    .Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice)
+            })
+            .ToListAsync(cancellationToken);
+
+        if (itemsWithVouchers.Count == 0)
+        {
+            _logger.LogInformation("No items with vouchers found for month: {Month}, year: {Year}", request.Month, request.Year);
+            return _responseHandler.Success(new GetItemsWithVouchersOfMonthResponse
+            {
+                Items = new List<GetItemsWithVouchersOfMonthResult>(),
+                TotalCount = 0
+            }, "No items with vouchers found for the specified month and year.");
+        }
+
+        var response = new GetItemsWithVouchersOfMonthResponse
+        {
+            Items = itemsWithVouchers,
+            TotalCount = itemsWithVouchers.Count
+        };
+
+        _logger.LogInformation("Retrieved {ItemCount} items with vouchers for month: {Month}, year: {Year}",
+            itemsWithVouchers.Count, request.Month, request.Year);
+        return _responseHandler.Success(response, "Items with vouchers retrieved successfully.");
     }
 
     public async Task<Response<CreateItemResponse>> CreateItemAsync(
