@@ -30,8 +30,7 @@ public class ItemVoucherMapping : IRegister
             .Map(dest => dest.UnitPrice, src => src.UnitPrice)
             .Map(dest => dest.VoucherDate, src => src.VoucherDate)
             .Map(dest => dest.Notes, src => src.Notes)
-            .Map(dest => dest.ItemId, src => src.ItemId)
-            .Map(dest => dest.ItemDescription, src => src.Item != null ? src.Item.Description : string.Empty);
+            .Map(dest => dest.ItemId, src => src.ItemId);
 
         config.NewConfig<CreateVoucherRequest, ItemVoucher>()
             .Map(dest => dest.Id, src => Guid.NewGuid())
