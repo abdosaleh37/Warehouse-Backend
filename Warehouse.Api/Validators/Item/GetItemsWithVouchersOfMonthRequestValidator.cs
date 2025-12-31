@@ -12,8 +12,8 @@ namespace Warehouse.Api.Validators.Item
                 .WithMessage("Month must be between 1 and 12.");
 
             RuleFor(x => x.Year)
-                .GreaterThan(0)
-                .WithMessage("Year must be a positive integer.");
+                .InclusiveBetween(2000, 2100)
+                .WithMessage("Year must be between 2000 and 2100.");
         }
     }
 }

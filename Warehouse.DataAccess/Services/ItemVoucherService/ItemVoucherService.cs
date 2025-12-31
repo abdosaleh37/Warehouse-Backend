@@ -5,6 +5,7 @@ using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.Entities.DTO.ItemVoucher.Create;
 using Warehouse.Entities.DTO.ItemVoucher.Delete;
 using Warehouse.Entities.DTO.ItemVoucher.GetById;
+using Warehouse.Entities.DTO.ItemVoucher.GetMonthlyVouchersOfItem;
 using Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem;
 using Warehouse.Entities.DTO.ItemVoucher.Update;
 using Warehouse.Entities.Entities;
@@ -130,6 +131,96 @@ public class ItemVoucherService : IItemVoucherService
 
         _logger.LogInformation("Retrieved voucher {VoucherId} for user {UserId}", request.Id, userId);
         return _responseHandler.Success(response, "Voucher retrieved successfully.");
+    }
+
+    public async Task<Response<GetMonthlyVouchersOfItemResponse>> GetMonthlyVouchersOfItemAsync(
+        Guid userId,
+        GetMonthlyVouchersOfItemRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Getting vouchers for item {ItemId} of month {Month}/{Year} by user {UserId}", 
+            request.ItemId, request.Month, request.Year, userId);
+
+        var item = await _context.Items
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.Id == request.ItemId && i.Section.Category.Warehouse.UserId == userId, cancellationToken);
+
+        if (item == null)
+        {
+            _logger.LogWarning("Item {ItemId} not found for user {UserId}", request.ItemId, userId);
+            return _responseHandler.NotFound<GetMonthlyVouchersOfItemResponse>("Item not found.");
+        }
+
+        var startOfMonth = new DateTime(request.Year, request.Month, 1);
+        var startOfNextMonth = startOfMonth.AddMonths(1);
+
+        var preMonthNetQuantity = await _context.ItemVouchers
+            .Where(iv => iv.ItemId == request.ItemId && iv.VoucherDate < startOfMonth)
+            .Select(iv => iv.InQuantity - iv.OutQuantity)
+            .SumAsync(cancellationToken);
+
+        var preMonthNetValue = await _context.ItemVouchers
+            .Where(iv => iv.ItemId == request.ItemId && iv.VoucherDate < startOfMonth)
+            .Select(iv => (iv.InQuantity - iv.OutQuantity) * iv.UnitPrice)
+            .SumAsync(cancellationToken);
+
+        var vouchersInMonth = await _context.ItemVouchers
+            .AsNoTracking()
+            .Where(iv => iv.ItemId == request.ItemId && iv.VoucherDate >= startOfMonth && iv.VoucherDate < startOfNextMonth)
+            .OrderBy(iv => iv.VoucherDate)
+                .ThenBy(iv => iv.Id)
+            .ToListAsync(cancellationToken);
+
+        if (vouchersInMonth.Count == 0)
+        {
+            _logger.LogInformation("No vouchers found for item {ItemId} in month {Month}/{Year}", request.ItemId, request.Month, request.Year);
+            return _responseHandler.Success(new GetMonthlyVouchersOfItemResponse
+            {
+                Vouchers = new List<GetMonthlyVouchersOfItemResult>(),
+                TotalCount = 0,
+                ItemId = item.Id,
+                ItemDescription = item.Description,
+                PreMonthItemAvailableQuantity = item.OpeningQuantity + preMonthNetQuantity,
+                PreMonthItemAvailableValue = (item.OpeningUnitPrice * item.OpeningQuantity) + preMonthNetValue,
+                PostMonthItemAvailableQuantity = item.OpeningQuantity + preMonthNetQuantity,
+                PostMonthItemAvailableValue = (item.OpeningUnitPrice * item.OpeningQuantity) + preMonthNetValue
+            }, "No vouchers found.");
+        }
+
+        var voucherResults = _mapper.Map<List<GetMonthlyVouchersOfItemResult>>(vouchersInMonth);
+
+        int runningQuantity = item.OpeningQuantity + preMonthNetQuantity;
+        decimal runningValue = (item.OpeningUnitPrice * item.OpeningQuantity) + preMonthNetValue;
+
+        for (int i = 0; i < voucherResults.Count; i++)
+        {
+            var dto = voucherResults[i];
+            var entity = vouchersInMonth[i];
+
+            var netQuantity = entity.InQuantity - entity.OutQuantity;
+            var netValue = netQuantity * entity.UnitPrice;
+
+            runningQuantity += netQuantity;
+            runningValue += netValue;
+
+            dto.AmountAfterVoucher = runningQuantity;
+            dto.ValueAfterVoucher = runningValue;
+        }
+
+        var response = new GetMonthlyVouchersOfItemResponse
+        {
+            Vouchers = voucherResults,
+            TotalCount = voucherResults.Count,
+            ItemId = item.Id,
+            ItemDescription = item.Description,
+            PreMonthItemAvailableQuantity = item.OpeningQuantity + preMonthNetQuantity,
+            PreMonthItemAvailableValue = (item.OpeningUnitPrice * item.OpeningQuantity) + preMonthNetValue,
+            PostMonthItemAvailableQuantity = runningQuantity,
+            PostMonthItemAvailableValue = runningValue
+        };
+
+        _logger.LogInformation("Retrieved {VoucherCount} vouchers for item {ItemId} in month {Month}/{Year}", voucherResults.Count, request.ItemId, request.Month, request.Year);
+        return _responseHandler.Success(response, "Vouchers retrieved successfully.");
     }
 
     public async Task<Response<CreateVoucherResponse>> CreateVoucherAsync(
