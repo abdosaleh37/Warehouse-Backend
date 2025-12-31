@@ -49,10 +49,13 @@ namespace Warehouse.DataAccess.Services.CategoryService
 
             var categories = await _context.Categories
             .AsNoTracking()
-            .Include(c => c.Warehouse)
-            .Include(c => c.Sections)
             .Where(c => c.WarehouseId == warehouse.Id)
             .OrderBy(c => c.CreatedAt)
+            .Select(c => new
+            {
+                Category = c,
+                SectionCount = c.Sections.Count
+            })
             .ToListAsync(cancellationToken);
 
             if (categories.Count == 0)
@@ -67,7 +70,12 @@ namespace Warehouse.DataAccess.Services.CategoryService
                 }, "No categories found.");
             }
 
-            var categoriesResult = _mapper.Map<List<GetAllCategoriesResult>>(categories);
+            var categoriesResult = categories.Select(x => {
+                var mapped = _mapper.Map<GetAllCategoriesResult>(x.Category);
+                mapped.SectionCount = x.SectionCount;
+                return mapped;
+            }).ToList();
+
             var response = new GetAllCategoriesResponse
             {
                 Categories = categoriesResult,
@@ -87,22 +95,34 @@ namespace Warehouse.DataAccess.Services.CategoryService
         {
             _logger.LogInformation("Getting information of category: {CategoryId}", request.Id);
 
-            var category = await _context.Categories
+            var categoryResult = await _context.Categories
                 .AsNoTracking()
-                .Include(c => c.Warehouse)
-                .Include(c => c.Sections)
-                .FirstOrDefaultAsync(c => c.Id == request.Id && c.Warehouse.UserId == userId, cancellationToken);
+                .Where(c => c.Id == request.Id && c.Warehouse.UserId == userId)
+                .Select(c => new
+                {
+                    Category = c,
+                    Warehouse = c.Warehouse,
+                    SectionCount = c.Sections.Count
+                })
+                .FirstOrDefaultAsync(cancellationToken);
 
-            if (category == null)
+            if (categoryResult == null)
             {
                 _logger.LogWarning("Category: {CategoryId} not found.", request.Id);
                 return _responseHandler.NotFound<GetCategoryByIdResponse>("Category not found.");
             }
 
-            var response = _mapper.Map<GetCategoryByIdResponse>(category);
+            var mapped = _mapper.Map<GetCategoryByIdResponse>(categoryResult.Category);
+            mapped.SectionCount = categoryResult.SectionCount;
+            mapped.WarehouseId = categoryResult.Category.WarehouseId;
 
-            _logger.LogInformation("Category: {CategoryId} information retreived successfully.", category.Id);
-            return _responseHandler.Success(response, "Category retreived successfully.");
+            if (categoryResult.Warehouse != null)
+            {
+                mapped.WarehouseName = categoryResult.Warehouse.Name;
+            }
+
+            _logger.LogInformation("Category: {CategoryId} information retreived successfully.", categoryResult.Category.Id);
+            return _responseHandler.Success(mapped, "Category retreived successfully.");
         }
 
         public async Task<Response<CreateCategoryResponse>> CreateAsync(
@@ -156,7 +176,6 @@ namespace Warehouse.DataAccess.Services.CategoryService
             _logger.LogInformation("Updating category: {CategoryId} with new name: {Name}", request.Id, request.Name);
 
             var category = await _context.Categories
-                .Include(c => c.Warehouse)
                 .FirstOrDefaultAsync(c => c.Id == request.Id && c.Warehouse.UserId == userId, cancellationToken);
 
             if (category == null)
@@ -192,7 +211,6 @@ namespace Warehouse.DataAccess.Services.CategoryService
             _logger.LogInformation("Deleting category: {CategoryId}", request.Id);
 
             var category = await _context.Categories
-                .Include(c => c.Warehouse)
                 .FirstOrDefaultAsync(c => c.Id == request.Id && c.Warehouse.UserId == userId, cancellationToken);
 
             if (category == null)

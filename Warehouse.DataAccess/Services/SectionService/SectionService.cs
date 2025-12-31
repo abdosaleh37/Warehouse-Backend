@@ -43,8 +43,9 @@ public class SectionService : ISectionService
             .Include(s => s.Category)
                 .ThenInclude(c => c.Warehouse)
             .Where(s => s.Category.Warehouse.UserId == userId)
-            .OrderBy(s => s.CreatedAt)
             .AsNoTracking()
+            .OrderBy(s => s.Category.CreatedAt)
+                .ThenBy(s => s.CreatedAt)
             .ToListAsync(cancellationToken);
 
         if (sections.Count == 0)

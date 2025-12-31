@@ -38,7 +38,10 @@ public class Program
             if (app.Environment.IsDevelopment())
             {
                 app.UseOpenApi();
-                app.UseSwaggerUi();
+                app.UseSwaggerUi(settings =>
+                {
+                    settings.DocExpansion = "list";
+                });
             }
 
             app.UseHttpsRedirection();
