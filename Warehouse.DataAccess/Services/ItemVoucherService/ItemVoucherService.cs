@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.Entities.DTO.ItemVoucher.Create;
+using Warehouse.Entities.DTO.ItemVoucher.Delete;
 using Warehouse.Entities.DTO.ItemVoucher.GetById;
 using Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem;
 using Warehouse.Entities.DTO.ItemVoucher.Update;
@@ -228,5 +229,41 @@ public class ItemVoucherService : IItemVoucherService
 
         _logger.LogInformation("Updated voucher {VoucherId} by user {UserId}", request.Id, userId);
         return _responseHandler.Success(response, "Voucher updated successfully.");
+    }
+
+    public async Task<Response<DeleteVoucherResponse>> DeleteVoucherAsync(
+        Guid userId,
+        DeleteVoucherRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Deleting voucher: {VoucherId} by user {UserId}", request.Id, userId);
+        var voucher = await _context.ItemVouchers
+            .Include(iv => iv.Item)
+                .ThenInclude(i => i.Section)
+                    .ThenInclude(s => s.Category)
+                        .ThenInclude(c => c.Warehouse)
+            .FirstOrDefaultAsync(iv => iv.Id == request.Id && iv.Item.Section.Category.Warehouse.UserId == userId, cancellationToken);
+
+        if (voucher == null)
+        {
+            _logger.LogWarning("Voucher {VoucherId} not found for user {UserId}", request.Id, userId);
+            return _responseHandler.NotFound<DeleteVoucherResponse>("Voucher not found.");
+        }
+
+        try
+        {
+            _context.ItemVouchers.Remove(voucher);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting voucher: {VoucherId} by user {UserId}", request.Id, userId);
+            return _responseHandler.InternalServerError<DeleteVoucherResponse>("An error occurred while deleting the voucher.");
+        }
+
+        var response = new DeleteVoucherResponse { Id = request.Id };
+
+        _logger.LogInformation("Deleted voucher {VoucherId} by user {UserId}", request.Id, userId);
+        return _responseHandler.Success(response, "Voucher deleted successfully.");
     }
 }

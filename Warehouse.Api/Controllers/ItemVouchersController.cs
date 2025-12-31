@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Warehouse.DataAccess.Services.ItemVoucherService;
 using Warehouse.Entities.DTO.ItemVoucher.Create;
+using Warehouse.Entities.DTO.ItemVoucher.Delete;
 using Warehouse.Entities.DTO.ItemVoucher.GetById;
 using Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem;
 using Warehouse.Entities.DTO.ItemVoucher.Update;
@@ -22,6 +23,7 @@ public class ItemVouchersController : ControllerBase
     private readonly IValidator<GetVoucherByIdRequest> _getVoucherByIdValidator;
     private readonly IValidator<CreateVoucherRequest> _createVoucherValidator;
     private readonly IValidator<UpdateVoucherRequest> _updateVoucherValidator;
+    private readonly IValidator<DeleteVoucherRequest> _deleteteVoucherValidator;
 
     public ItemVouchersController(
         ResponseHandler responseHandler,
@@ -30,7 +32,8 @@ public class ItemVouchersController : ControllerBase
         IValidator<GetVouchersOfItemRequest> getVouchersOfItemValidator,
         IValidator<GetVoucherByIdRequest> getVoucherByIdValidator,
         IValidator<CreateVoucherRequest> createVoucherValidator,
-        IValidator<UpdateVoucherRequest> updateVoucherValidator)
+        IValidator<UpdateVoucherRequest> updateVoucherValidator,
+        IValidator<DeleteVoucherRequest> deleteteVoucherValidator)
     {
         _responseHandler = responseHandler;
         _logger = logger;
@@ -39,6 +42,7 @@ public class ItemVouchersController : ControllerBase
         _getVoucherByIdValidator = getVoucherByIdValidator;
         _createVoucherValidator = createVoucherValidator;
         _updateVoucherValidator = updateVoucherValidator;
+        _deleteteVoucherValidator = deleteteVoucherValidator;
     }
 
     [HttpGet("item/{id:guid}")]
@@ -136,6 +140,30 @@ public class ItemVouchersController : ControllerBase
         }
 
         var response = await _itemVoucherService.UpdateVoucherAsync(userId, request, cancellationToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpDelete]
+    public async Task<ActionResult<Response<DeleteVoucherResponse>>> DeleteVoucher(
+        [FromBody] DeleteVoucherRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
+        var validationResult = await _deleteteVoucherValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = validationResult.Errors.FlattenErrors();
+            _logger.LogWarning("Invalid delete voucher request: {Errors}", errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+
+        var response = await _itemVoucherService.DeleteVoucherAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 }
