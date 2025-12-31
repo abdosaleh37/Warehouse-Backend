@@ -16,7 +16,7 @@ public class Item
 
     public int OpeningQuantity { get; set; } = 0;
 
-    public decimal OpeningValue { get; set; } = 0;
+    public decimal OpeningUnitPrice { get; set; } = 0;
     
     public DateTime OpeningDate { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

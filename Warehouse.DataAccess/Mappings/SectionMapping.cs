@@ -16,6 +16,7 @@ public class SectionMapping : IRegister
             .Map(dest => dest.Id, src => src.Id)
             .Map(dest => dest.Name, src => src.Name)
             .Map(dest => dest.CategoryId, src => src.CategoryId)
+            .Map(dest => dest.CategoryName, src => src.Category.Name)
             .Map(dest => dest.ItemCount, src => src.Items.Count);
 
         config.NewConfig<Section, GetSectionsOfCategoryResult>()

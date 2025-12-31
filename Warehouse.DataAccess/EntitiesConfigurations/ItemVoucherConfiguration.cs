@@ -22,12 +22,12 @@ public class ItemVoucherConfiguration : IEntityTypeConfiguration<ItemVoucher>
 
         builder.Property(v => v.InQuantity)
             .IsRequired()
-            .HasPrecision(18, 3)
+            .HasColumnType("int")
             .HasDefaultValue(0);
 
         builder.Property(v => v.OutQuantity)
             .IsRequired()
-            .HasPrecision(18, 3)
+            .HasColumnType("int")
             .HasDefaultValue(0);
 
         builder.Property(v => v.UnitPrice)

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Warehouse.DataAccess.ApplicationDbContext;
 
@@ -11,9 +12,11 @@ using Warehouse.DataAccess.ApplicationDbContext;
 namespace Warehouse.DataAccess.Migrations
 {
     [DbContext(typeof(WarehouseDbContext))]
-    partial class WarehouseDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251230214427_RenameOpeningValue")]
+    partial class RenameOpeningValue
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -250,7 +253,7 @@ namespace Warehouse.DataAccess.Migrations
                     b.HasIndex("WarehouseId", "Name")
                         .IsUnique();
 
-                    b.ToTable("Categories", (string)null);
+                    b.ToTable("Categories");
                 });
 
             modelBuilder.Entity("Warehouse.Entities.Entities.Item", b =>
@@ -306,7 +309,7 @@ namespace Warehouse.DataAccess.Migrations
 
                     b.HasIndex("SectionId");
 
-                    b.ToTable("Items", (string)null);
+                    b.ToTable("Items");
                 });
 
             modelBuilder.Entity("Warehouse.Entities.Entities.ItemVoucher", b =>
@@ -355,7 +358,7 @@ namespace Warehouse.DataAccess.Migrations
 
                     b.HasIndex("ItemId", "VoucherDate");
 
-                    b.ToTable("ItemVouchers", (string)null);
+                    b.ToTable("ItemVouchers");
                 });
 
             modelBuilder.Entity("Warehouse.Entities.Entities.Section", b =>
@@ -385,7 +388,7 @@ namespace Warehouse.DataAccess.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Sections", (string)null);
+                    b.ToTable("Sections");
                 });
 
             modelBuilder.Entity("Warehouse.Entities.Entities.UserRefreshToken", b =>
@@ -422,7 +425,7 @@ namespace Warehouse.DataAccess.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserRefreshTokens", (string)null);
+                    b.ToTable("UserRefreshTokens");
                 });
 
             modelBuilder.Entity("Warehouse.Entities.Entities.Warehouse", b =>
@@ -445,7 +448,7 @@ namespace Warehouse.DataAccess.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("Warehouses", (string)null);
+                    b.ToTable("Warehouses");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>

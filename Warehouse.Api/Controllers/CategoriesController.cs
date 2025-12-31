@@ -81,7 +81,7 @@ namespace Warehouse.Api.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
-        [HttpPost("create")]
+        [HttpPost]
         public async Task<ActionResult<Response<CreateCategoryResponse>>> CreateCategory(
             [FromBody] CreateCategoryRequest request,
             CancellationToken cancellationToken)
@@ -105,7 +105,7 @@ namespace Warehouse.Api.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
-        [HttpPut("update")]
+        [HttpPut]
         public async Task<ActionResult<Response<UpdateCategoryResponse>>> UpdateCategory(
             [FromBody] UpdateCategoryRequest request,
             CancellationToken cancellationToken)
@@ -129,7 +129,7 @@ namespace Warehouse.Api.Controllers
             return StatusCode((int)response.StatusCode, response);
         }
 
-        [HttpDelete("delete")]
+        [HttpDelete]
         public async Task<ActionResult<Response<DeleteCategoryResponse>>> DeleteCategory(
             [FromBody] DeleteCategoryRequest request,
             CancellationToken cancellationToken)

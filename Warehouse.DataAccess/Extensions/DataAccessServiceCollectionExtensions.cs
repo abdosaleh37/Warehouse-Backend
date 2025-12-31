@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Warehouse.DataAccess.ApplicationDbContext;
-using Warehouse.DataAccess.Mappings;
 using Warehouse.DataAccess.Services.AuthService;
 using Warehouse.DataAccess.Services.CategoryService;
 using Warehouse.DataAccess.Services.ItemService;
