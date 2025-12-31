@@ -5,6 +5,7 @@ using Warehouse.DataAccess.Services.ItemVoucherService;
 using Warehouse.Entities.DTO.ItemVoucher.Create;
 using Warehouse.Entities.DTO.ItemVoucher.GetById;
 using Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem;
+using Warehouse.Entities.DTO.ItemVoucher.Update;
 using Warehouse.Entities.Shared.ResponseHandling;
 
 namespace Warehouse.Api.Controllers;
@@ -20,6 +21,7 @@ public class ItemVouchersController : ControllerBase
     private readonly IValidator<GetVouchersOfItemRequest> _getVouchersOfItemValidator;
     private readonly IValidator<GetVoucherByIdRequest> _getVoucherByIdValidator;
     private readonly IValidator<CreateVoucherRequest> _createVoucherValidator;
+    private readonly IValidator<UpdateVoucherRequest> _updateVoucherValidator;
 
     public ItemVouchersController(
         ResponseHandler responseHandler,
@@ -27,7 +29,8 @@ public class ItemVouchersController : ControllerBase
         IItemVoucherService itemVoucherService,
         IValidator<GetVouchersOfItemRequest> getVouchersOfItemValidator,
         IValidator<GetVoucherByIdRequest> getVoucherByIdValidator,
-        IValidator<CreateVoucherRequest> createVoucherValidator)
+        IValidator<CreateVoucherRequest> createVoucherValidator,
+        IValidator<UpdateVoucherRequest> updateVoucherValidator)
     {
         _responseHandler = responseHandler;
         _logger = logger;
@@ -35,6 +38,7 @@ public class ItemVouchersController : ControllerBase
         _getVouchersOfItemValidator = getVouchersOfItemValidator;
         _getVoucherByIdValidator = getVoucherByIdValidator;
         _createVoucherValidator = createVoucherValidator;
+        _updateVoucherValidator = updateVoucherValidator;
     }
 
     [HttpGet("item/{id:guid}")]
@@ -108,6 +112,30 @@ public class ItemVouchersController : ControllerBase
         }
 
         var response = await _itemVoucherService.CreateVoucherAsync(userId, request, cancellationToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpPut]
+    public async Task<ActionResult<Response<UpdateVoucherResponse>>> UpdateVoucher(
+        [FromBody] UpdateVoucherRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
+        var validationResult = await _updateVoucherValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = validationResult.Errors.FlattenErrors();
+            _logger.LogWarning("Invalid update voucher request: {Errors}", errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+
+        var response = await _itemVoucherService.UpdateVoucherAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 }

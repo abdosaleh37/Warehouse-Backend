@@ -5,6 +5,7 @@ using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.Entities.DTO.ItemVoucher.Create;
 using Warehouse.Entities.DTO.ItemVoucher.GetById;
 using Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem;
+using Warehouse.Entities.DTO.ItemVoucher.Update;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
 
@@ -174,5 +175,58 @@ public class ItemVoucherService : IItemVoucherService
 
         _logger.LogInformation("Created voucher {VoucherId} for item {ItemId} by user {UserId}", voucherEntity.Id, request.ItemId, userId);
         return _responseHandler.Success(response, "Voucher created successfully.");
+    }
+
+    public async Task<Response<UpdateVoucherResponse>> UpdateVoucherAsync(
+        Guid userId,
+        UpdateVoucherRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Updating voucher: {VoucherId} by user {UserId}", request.Id, userId);
+
+        var voucher = await _context.ItemVouchers
+            .Include(iv => iv.Item)
+                .ThenInclude(i => i.Section)
+                    .ThenInclude(s => s.Category)
+                        .ThenInclude(c => c.Warehouse)
+            .FirstOrDefaultAsync(iv => iv.Id == request.Id && iv.Item.Section.Category.Warehouse.UserId == userId, cancellationToken);
+
+        if (voucher == null)
+        {
+            _logger.LogWarning("Voucher {VoucherId} not found for user {UserId}", request.Id, userId);
+            return _responseHandler.NotFound<UpdateVoucherResponse>("Voucher not found.");
+        }
+
+        var currentNetQuantity = await _context.ItemVouchers
+            .Where(iv => iv.ItemId == voucher.Item.Id && iv.Id != request.Id)
+            .Select(iv => iv.InQuantity - iv.OutQuantity)
+            .SumAsync(cancellationToken);
+
+        var newNetQuantity = request.InQuantity - request.OutQuantity;
+        var projectedAvailable = voucher.Item.OpeningQuantity + currentNetQuantity + newNetQuantity;
+
+        if (projectedAvailable < 0)
+        {
+            _logger.LogWarning("Insufficient quantity for item {ItemId} when updating voucher by user {UserId}. Projected available: {Projected}",
+                voucher.Item.Id, userId, projectedAvailable);
+            return _responseHandler.BadRequest<UpdateVoucherResponse>("Insufficient available quantity for this voucher.");
+        }
+
+        _mapper.Map(request, voucher);
+
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating voucher: {VoucherId} by user {UserId}", request.Id, userId);
+            return _responseHandler.InternalServerError<UpdateVoucherResponse>("An error occurred while updating the voucher.");
+        }
+
+        var response = _mapper.Map<UpdateVoucherResponse>(voucher);
+
+        _logger.LogInformation("Updated voucher {VoucherId} by user {UserId}", request.Id, userId);
+        return _responseHandler.Success(response, "Voucher updated successfully.");
     }
 }

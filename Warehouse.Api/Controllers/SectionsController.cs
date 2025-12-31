@@ -108,7 +108,7 @@ public class SectionsController : ControllerBase
         return StatusCode((int)response.StatusCode, response);
     }
 
-    [HttpPost("create")]
+    [HttpPost]
     public async Task<ActionResult<Response<CreateSectionResponse>>> CreateSection(
         [FromBody] CreateSectionRequest request,
         CancellationToken cancellationToken)
@@ -131,7 +131,7 @@ public class SectionsController : ControllerBase
         return StatusCode((int)response.StatusCode, response);
     }
 
-    [HttpPut("update")]
+    [HttpPut]
     public async Task<ActionResult<Response<UpdateSectionResponse>>> UpdateSection(
         [FromBody] UpdateSectionRequest request,
         CancellationToken cancellationToken)
@@ -154,7 +154,7 @@ public class SectionsController : ControllerBase
         return StatusCode((int)response.StatusCode, response);
     }
 
-    [HttpDelete("delete")]
+    [HttpDelete]
     public async Task<ActionResult<Response<DeleteSectionResponse>>> DeleteSection(
         [FromBody] DeleteSectionRequest request,
         CancellationToken cancellationToken)
