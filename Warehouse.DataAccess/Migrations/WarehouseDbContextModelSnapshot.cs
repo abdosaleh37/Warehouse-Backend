@@ -250,7 +250,7 @@ namespace Warehouse.DataAccess.Migrations
                     b.HasIndex("WarehouseId", "Name")
                         .IsUnique();
 
-                    b.ToTable("Categories");
+                    b.ToTable("Categories", (string)null);
                 });
 
             modelBuilder.Entity("Warehouse.Entities.Entities.Item", b =>
@@ -306,7 +306,7 @@ namespace Warehouse.DataAccess.Migrations
 
                     b.HasIndex("SectionId");
 
-                    b.ToTable("Items");
+                    b.ToTable("Items", (string)null);
                 });
 
             modelBuilder.Entity("Warehouse.Entities.Entities.ItemVoucher", b =>
@@ -355,7 +355,7 @@ namespace Warehouse.DataAccess.Migrations
 
                     b.HasIndex("ItemId", "VoucherDate");
 
-                    b.ToTable("ItemVouchers");
+                    b.ToTable("ItemVouchers", (string)null);
                 });
 
             modelBuilder.Entity("Warehouse.Entities.Entities.Section", b =>
@@ -385,7 +385,7 @@ namespace Warehouse.DataAccess.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Sections");
+                    b.ToTable("Sections", (string)null);
                 });
 
             modelBuilder.Entity("Warehouse.Entities.Entities.UserRefreshToken", b =>
@@ -422,7 +422,7 @@ namespace Warehouse.DataAccess.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserRefreshTokens");
+                    b.ToTable("UserRefreshTokens", (string)null);
                 });
 
             modelBuilder.Entity("Warehouse.Entities.Entities.Warehouse", b =>
@@ -445,7 +445,7 @@ namespace Warehouse.DataAccess.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("Warehouses");
+                    b.ToTable("Warehouses", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>

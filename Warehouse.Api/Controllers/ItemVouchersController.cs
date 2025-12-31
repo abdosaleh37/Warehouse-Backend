@@ -63,7 +63,7 @@ public class ItemVouchersController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    public ActionResult<Response<GetVoucherByIdResponse>> GetVoucherById(
+    public async Task<ActionResult<Response<GetVoucherByIdResponse>>> GetVoucherById(
         [FromRoute] Guid id,
         CancellationToken cancellationToken)
     {
@@ -74,7 +74,7 @@ public class ItemVouchersController : ControllerBase
         }
 
         var request = new GetVoucherByIdRequest { Id = id };
-        var validationResult = _getVoucherByIdValidator.Validate(request);
+        var validationResult = await _getVoucherByIdValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
             string errors = validationResult.Errors.FlattenErrors();
@@ -83,7 +83,7 @@ public class ItemVouchersController : ControllerBase
                 _responseHandler.BadRequest<object>(errors));
         }
 
-        var response = _itemVoucherService.GetVoucherByIdAsync(userId, request, cancellationToken).Result;
+        var response = await _itemVoucherService.GetVoucherByIdAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 

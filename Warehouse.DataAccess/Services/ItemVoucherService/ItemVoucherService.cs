@@ -142,6 +142,21 @@ public class ItemVoucherService : IItemVoucherService
             return _responseHandler.NotFound<CreateVoucherResponse>("Item not found.");
         }
 
+        var currentNetQuantity = await _context.ItemVouchers
+            .Where(iv => iv.ItemId == item.Id)
+            .Select(iv => iv.InQuantity - iv.OutQuantity)
+            .SumAsync(cancellationToken);
+
+        var newNetQuantity = request.InQuantity - request.OutQuantity;
+        var projectedAvailable = item.OpeningQuantity + currentNetQuantity + newNetQuantity;
+
+        if (projectedAvailable < 0)
+        {
+            _logger.LogWarning("Insufficient quantity for item {ItemId} when creating voucher by user {UserId}. Projected available: {Projected}", 
+                item.Id, userId, projectedAvailable);
+            return _responseHandler.BadRequest<CreateVoucherResponse>("Insufficient available quantity for this voucher.");
+        }
+
         var voucherEntity = _mapper.Map<ItemVoucher>(request);
 
         try
