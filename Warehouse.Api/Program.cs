@@ -12,7 +12,7 @@ public class Program
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Information()
             .WriteTo.Console()
-            .WriteTo.File("Logs/warehouse-log-.txt", 
+            .WriteTo.File("Logs/warehouse-log-.txt",
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 30)
             .CreateLogger();
@@ -32,14 +32,27 @@ public class Program
             // Add API dependencies (Auth, Swagger, FluentValidation, CORS)
             builder.Services.AddApiDependencies(builder.Configuration);
 
+            // Add health checks
+            builder.Services.AddHealthChecks();
+
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
+            // Global exception handler (production)
+            if (!app.Environment.IsDevelopment())
             {
-                app.UseOpenApi();
-                app.UseSwaggerUi();
+                app.UseExceptionHandler("/api/error");
+                app.UseHsts();
             }
+
+            // Configure the HTTP request pipeline.
+            //if (app.Environment.IsDevelopment())
+            //{
+                app.UseOpenApi();
+                app.UseSwaggerUi(settings =>
+                {
+                    settings.DocExpansion = "list";
+                });
+            //}
 
             app.UseHttpsRedirection();
 
@@ -49,6 +62,7 @@ public class Program
             app.UseAuthorization();
 
             app.MapControllers();
+            app.MapHealthChecks("/health");
 
             Log.Information("Warehouse API started successfully");
             app.Run();

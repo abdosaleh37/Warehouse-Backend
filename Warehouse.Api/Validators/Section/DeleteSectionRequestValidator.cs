@@ -5,7 +5,7 @@ namespace Warehouse.Api.Validators.Section
 {
     public class DeleteSectionRequestValidator : AbstractValidator<DeleteSectionRequest>
     {
-        public DeleteSectionRequestValidator() 
+        public DeleteSectionRequestValidator()
         {
             RuleFor(x => x.Id)
                 .NotEmpty().WithMessage("Section Id is required");

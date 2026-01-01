@@ -5,6 +5,7 @@ using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.Entities.DTO.ItemVoucher.Create;
 using Warehouse.Entities.DTO.ItemVoucher.Delete;
 using Warehouse.Entities.DTO.ItemVoucher.GetById;
+using Warehouse.Entities.DTO.ItemVoucher.GetMonthlyVouchersOfItem;
 using Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem;
 using Warehouse.Entities.DTO.ItemVoucher.Update;
 using Warehouse.Entities.Entities;
@@ -22,7 +23,7 @@ public class ItemVoucherService : IItemVoucherService
     public ItemVoucherService(
         IMapper mapper,
         ILogger<ItemVoucherService> logger,
-        WarehouseDbContext context, 
+        WarehouseDbContext context,
         ResponseHandler responseHandler)
     {
         _logger = logger;
@@ -39,9 +40,7 @@ public class ItemVoucherService : IItemVoucherService
         _logger.LogInformation("Getting vouchers for item {ItemId} by user {UserId}", request.ItemId, userId);
 
         var item = await _context.Items
-            .Include(i => i.Section)
-                .ThenInclude(s => s.Category)
-                    .ThenInclude(c => c.Warehouse)
+            .AsNoTracking()
             .FirstOrDefaultAsync(i => i.Id == request.ItemId && i.Section.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (item == null)
@@ -51,6 +50,7 @@ public class ItemVoucherService : IItemVoucherService
         }
 
         var vouchers = await _context.ItemVouchers
+            .AsNoTracking()
             .Where(iv => iv.ItemId == request.ItemId)
             .OrderBy(iv => iv.VoucherDate)
                 .ThenBy(iv => iv.Id)
@@ -111,11 +111,14 @@ public class ItemVoucherService : IItemVoucherService
     {
         _logger.LogInformation("Getting voucher {VoucherId} by user {UserId}", request.Id, userId);
         var voucher = await _context.ItemVouchers
-            .Include(iv => iv.Item)
-                .ThenInclude(i => i.Section)
-                    .ThenInclude(s => s.Category)
-                        .ThenInclude(c => c.Warehouse)
-            .FirstOrDefaultAsync(iv => iv.Id == request.Id && iv.Item.Section.Category.Warehouse.UserId == userId, cancellationToken);
+            .AsNoTracking()
+            .Where(iv => iv.Id == request.Id && iv.Item.Section.Category.Warehouse.UserId == userId)
+            .Select(iv => new
+            {
+                Voucher = iv,
+                ItemDescription = iv.Item.Description
+            })
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (voucher == null)
         {
@@ -123,10 +126,101 @@ public class ItemVoucherService : IItemVoucherService
             return _responseHandler.NotFound<GetVoucherByIdResponse>("Voucher not found.");
         }
 
-        var response = _mapper.Map<GetVoucherByIdResponse>(voucher);
+        var response = _mapper.Map<GetVoucherByIdResponse>(voucher.Voucher);
+        response.ItemDescription = voucher.ItemDescription ?? string.Empty;
 
         _logger.LogInformation("Retrieved voucher {VoucherId} for user {UserId}", request.Id, userId);
         return _responseHandler.Success(response, "Voucher retrieved successfully.");
+    }
+
+    public async Task<Response<GetMonthlyVouchersOfItemResponse>> GetMonthlyVouchersOfItemAsync(
+        Guid userId,
+        GetMonthlyVouchersOfItemRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Getting vouchers for item {ItemId} of month {Month}/{Year} by user {UserId}",
+            request.ItemId, request.Month, request.Year, userId);
+
+        var item = await _context.Items
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.Id == request.ItemId && i.Section.Category.Warehouse.UserId == userId, cancellationToken);
+
+        if (item == null)
+        {
+            _logger.LogWarning("Item {ItemId} not found for user {UserId}", request.ItemId, userId);
+            return _responseHandler.NotFound<GetMonthlyVouchersOfItemResponse>("Item not found.");
+        }
+
+        var startOfMonth = new DateTime(request.Year, request.Month, 1);
+        var startOfNextMonth = startOfMonth.AddMonths(1);
+
+        var preMonthNetQuantity = await _context.ItemVouchers
+            .Where(iv => iv.ItemId == request.ItemId && iv.VoucherDate < startOfMonth)
+            .Select(iv => iv.InQuantity - iv.OutQuantity)
+            .SumAsync(cancellationToken);
+
+        var preMonthNetValue = await _context.ItemVouchers
+            .Where(iv => iv.ItemId == request.ItemId && iv.VoucherDate < startOfMonth)
+            .Select(iv => (iv.InQuantity - iv.OutQuantity) * iv.UnitPrice)
+            .SumAsync(cancellationToken);
+
+        var vouchersInMonth = await _context.ItemVouchers
+            .AsNoTracking()
+            .Where(iv => iv.ItemId == request.ItemId && iv.VoucherDate >= startOfMonth && iv.VoucherDate < startOfNextMonth)
+            .OrderBy(iv => iv.VoucherDate)
+                .ThenBy(iv => iv.Id)
+            .ToListAsync(cancellationToken);
+
+        if (vouchersInMonth.Count == 0)
+        {
+            _logger.LogInformation("No vouchers found for item {ItemId} in month {Month}/{Year}", request.ItemId, request.Month, request.Year);
+            return _responseHandler.Success(new GetMonthlyVouchersOfItemResponse
+            {
+                Vouchers = new List<GetMonthlyVouchersOfItemResult>(),
+                TotalCount = 0,
+                ItemId = item.Id,
+                ItemDescription = item.Description,
+                PreMonthItemAvailableQuantity = item.OpeningQuantity + preMonthNetQuantity,
+                PreMonthItemAvailableValue = (item.OpeningUnitPrice * item.OpeningQuantity) + preMonthNetValue,
+                PostMonthItemAvailableQuantity = item.OpeningQuantity + preMonthNetQuantity,
+                PostMonthItemAvailableValue = (item.OpeningUnitPrice * item.OpeningQuantity) + preMonthNetValue
+            }, "No vouchers found.");
+        }
+
+        var voucherResults = _mapper.Map<List<GetMonthlyVouchersOfItemResult>>(vouchersInMonth);
+
+        int runningQuantity = item.OpeningQuantity + preMonthNetQuantity;
+        decimal runningValue = (item.OpeningUnitPrice * item.OpeningQuantity) + preMonthNetValue;
+
+        for (int i = 0; i < voucherResults.Count; i++)
+        {
+            var dto = voucherResults[i];
+            var entity = vouchersInMonth[i];
+
+            var netQuantity = entity.InQuantity - entity.OutQuantity;
+            var netValue = netQuantity * entity.UnitPrice;
+
+            runningQuantity += netQuantity;
+            runningValue += netValue;
+
+            dto.AmountAfterVoucher = runningQuantity;
+            dto.ValueAfterVoucher = runningValue;
+        }
+
+        var response = new GetMonthlyVouchersOfItemResponse
+        {
+            Vouchers = voucherResults,
+            TotalCount = voucherResults.Count,
+            ItemId = item.Id,
+            ItemDescription = item.Description,
+            PreMonthItemAvailableQuantity = item.OpeningQuantity + preMonthNetQuantity,
+            PreMonthItemAvailableValue = (item.OpeningUnitPrice * item.OpeningQuantity) + preMonthNetValue,
+            PostMonthItemAvailableQuantity = runningQuantity,
+            PostMonthItemAvailableValue = runningValue
+        };
+
+        _logger.LogInformation("Retrieved {VoucherCount} vouchers for item {ItemId} in month {Month}/{Year}", voucherResults.Count, request.ItemId, request.Month, request.Year);
+        return _responseHandler.Success(response, "Vouchers retrieved successfully.");
     }
 
     public async Task<Response<CreateVoucherResponse>> CreateVoucherAsync(
@@ -137,9 +231,7 @@ public class ItemVoucherService : IItemVoucherService
         _logger.LogInformation("Creating voucher for item {ItemId} by user {UserId}", request.ItemId, userId);
 
         var item = await _context.Items
-            .Include(i => i.Section)
-                .ThenInclude(s => s.Category)
-                    .ThenInclude(c => c.Warehouse)
+            .AsNoTracking()
             .FirstOrDefaultAsync(i => i.Id == request.ItemId && i.Section.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (item == null)
@@ -158,7 +250,7 @@ public class ItemVoucherService : IItemVoucherService
 
         if (projectedAvailable < 0)
         {
-            _logger.LogWarning("Insufficient quantity for item {ItemId} when creating voucher by user {UserId}. Projected available: {Projected}", 
+            _logger.LogWarning("Insufficient quantity for item {ItemId} when creating voucher by user {UserId}. Projected available: {Projected}",
                 item.Id, userId, projectedAvailable);
             return _responseHandler.BadRequest<CreateVoucherResponse>("Insufficient available quantity for this voucher.");
         }
@@ -190,11 +282,10 @@ public class ItemVoucherService : IItemVoucherService
         _logger.LogInformation("Updating voucher: {VoucherId} by user {UserId}", request.Id, userId);
 
         var voucher = await _context.ItemVouchers
-            .Include(iv => iv.Item)
-                .ThenInclude(i => i.Section)
-                    .ThenInclude(s => s.Category)
-                        .ThenInclude(c => c.Warehouse)
-            .FirstOrDefaultAsync(iv => iv.Id == request.Id && iv.Item.Section.Category.Warehouse.UserId == userId, cancellationToken);
+            .AsNoTracking()
+            .Where(iv => iv.Id == request.Id && iv.Item.Section.Category.Warehouse.UserId == userId)
+            .Select(iv => new { iv, ItemOpening = iv.Item.OpeningQuantity })
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (voucher == null)
         {
@@ -203,21 +294,29 @@ public class ItemVoucherService : IItemVoucherService
         }
 
         var currentNetQuantity = await _context.ItemVouchers
-            .Where(iv => iv.ItemId == voucher.Item.Id && iv.Id != request.Id)
+            .Where(iv => iv.ItemId == voucher.iv.ItemId && iv.Id != request.Id)
             .Select(iv => iv.InQuantity - iv.OutQuantity)
             .SumAsync(cancellationToken);
 
         var newNetQuantity = request.InQuantity - request.OutQuantity;
-        var projectedAvailable = voucher.Item.OpeningQuantity + currentNetQuantity + newNetQuantity;
+        var projectedAvailable = voucher.ItemOpening + currentNetQuantity + newNetQuantity;
 
         if (projectedAvailable < 0)
         {
             _logger.LogWarning("Insufficient quantity for item {ItemId} when updating voucher by user {UserId}. Projected available: {Projected}",
-                voucher.Item.Id, userId, projectedAvailable);
+                voucher.iv.ItemId, userId, projectedAvailable);
             return _responseHandler.BadRequest<UpdateVoucherResponse>("Insufficient available quantity for this voucher.");
         }
 
-        _mapper.Map(request, voucher);
+        var voucherEntity = await _context.ItemVouchers
+            .FirstOrDefaultAsync(iv => iv.Id == request.Id, cancellationToken);
+
+        if (voucherEntity == null)
+        {
+            return _responseHandler.NotFound<UpdateVoucherResponse>("Voucher not found.");
+        }
+
+        _mapper.Map(request, voucherEntity);
 
         try
         {
@@ -229,7 +328,7 @@ public class ItemVoucherService : IItemVoucherService
             return _responseHandler.InternalServerError<UpdateVoucherResponse>("An error occurred while updating the voucher.");
         }
 
-        var response = _mapper.Map<UpdateVoucherResponse>(voucher);
+        var response = _mapper.Map<UpdateVoucherResponse>(voucherEntity);
 
         _logger.LogInformation("Updated voucher {VoucherId} by user {UserId}", request.Id, userId);
         return _responseHandler.Success(response, "Voucher updated successfully.");
@@ -242,10 +341,6 @@ public class ItemVoucherService : IItemVoucherService
     {
         _logger.LogInformation("Deleting voucher: {VoucherId} by user {UserId}", request.Id, userId);
         var voucher = await _context.ItemVouchers
-            .Include(iv => iv.Item)
-                .ThenInclude(i => i.Section)
-                    .ThenInclude(s => s.Category)
-                        .ThenInclude(c => c.Warehouse)
             .FirstOrDefaultAsync(iv => iv.Id == request.Id && iv.Item.Section.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (voucher == null)

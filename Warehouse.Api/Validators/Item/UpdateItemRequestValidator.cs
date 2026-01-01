@@ -5,7 +5,7 @@ namespace Warehouse.Api.Validators.Item
 {
     public class UpdateItemRequestValidator : AbstractValidator<UpdateItemRequest>
     {
-        public UpdateItemRequestValidator() 
+        public UpdateItemRequestValidator()
         {
             RuleFor(x => x.Id)
                 .NotEmpty().WithMessage("Item Id is required.");

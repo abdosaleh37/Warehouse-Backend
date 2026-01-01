@@ -36,8 +36,23 @@ public static class DataAccessServiceCollectionExtensions
             ? configuration.GetConnectionString("ProdCS")
             : configuration.GetConnectionString("DevCS");
 
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            throw new InvalidOperationException($"Connection string for {connectionMode} mode is not configured.");
+        }
+
         services.AddDbContext<WarehouseDbContext>(options =>
-            options.UseSqlServer(connectionString));
+            options.UseSqlServer(connectionString, sqlOptions =>
+            {
+                // Enable connection resiliency
+                sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    errorNumbersToAdd: null);
+                
+                // Set command timeout
+                sqlOptions.CommandTimeout(30);
+            }));
 
         return services;
     }
@@ -46,20 +61,25 @@ public static class DataAccessServiceCollectionExtensions
     {
         services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
         {
-            // Password settings
+            // Password settings - strengthened for production
             options.Password.RequireDigit = true;
             options.Password.RequireLowercase = true;
             options.Password.RequireUppercase = true;
-            options.Password.RequireNonAlphanumeric = false;
-            options.Password.RequiredLength = 6;
+            options.Password.RequireNonAlphanumeric = true;
+            options.Password.RequiredLength = 8;
+            options.Password.RequiredUniqueChars = 4;
 
             // Lockout settings
-            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
             options.Lockout.MaxFailedAccessAttempts = 5;
             options.Lockout.AllowedForNewUsers = true;
 
             // User settings
             options.User.RequireUniqueEmail = true;
+            
+            // Sign-in settings
+            options.SignIn.RequireConfirmedEmail = false;
+            options.SignIn.RequireConfirmedPhoneNumber = false;
         })
         .AddEntityFrameworkStores<WarehouseDbContext>()
         .AddDefaultTokenProviders();
@@ -78,17 +98,17 @@ public static class DataAccessServiceCollectionExtensions
     private static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         services.AddScoped<ResponseHandler>();
-        
+
         // Authentication
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITokenStoreService, TokenStoreService>();
-        
+
         // Warehouse services
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ISectionService, SectionService>();
         services.AddScoped<IItemService, ItemService>();
         services.AddScoped<IItemVoucherService, ItemVoucherService>();
-        
+
         return services;
     }
 }

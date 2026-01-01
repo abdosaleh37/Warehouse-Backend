@@ -101,7 +101,7 @@ namespace Warehouse.Api.Controllers
                     _responseHandler.BadRequest<object>(errors));
             }
 
-            var response = await _categoryService.CreateAsync(userId, request, cancellationToken);
+            var response = await _categoryService.CreateCategoryAsync(userId, request, cancellationToken);
             return StatusCode((int)response.StatusCode, response);
         }
 
@@ -125,7 +125,7 @@ namespace Warehouse.Api.Controllers
                     _responseHandler.BadRequest<object>(errors));
             }
 
-            var response = await _categoryService.UpdateAsync(userId, request, cancellationToken);
+            var response = await _categoryService.UpdateCategoryAsync(userId, request, cancellationToken);
             return StatusCode((int)response.StatusCode, response);
         }
 
@@ -149,7 +149,7 @@ namespace Warehouse.Api.Controllers
                     _responseHandler.BadRequest<object>(errors));
             }
 
-            var response = await _categoryService.DeleteAsync(userId, request, cancellationToken);
+            var response = await _categoryService.DeleteCategoryAsync(userId, request, cancellationToken);
             return StatusCode((int)response.StatusCode, response);
         }
     }

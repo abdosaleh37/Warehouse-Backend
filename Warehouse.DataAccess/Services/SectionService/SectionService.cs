@@ -22,7 +22,7 @@ public class SectionService : ISectionService
 
     public SectionService(
         ILogger<SectionService> logger,
-        IMapper mapper, 
+        IMapper mapper,
         WarehouseDbContext context,
         ResponseHandler responseHandler)
     {
@@ -39,12 +39,16 @@ public class SectionService : ISectionService
         _logger.LogInformation("Retrieving all sections for user: {UserId}.", userId);
 
         var sections = await _context.Sections
-            .Include(s => s.Items)
-            .Include(s => s.Category)
-                .ThenInclude(c => c.Warehouse)
-            .Where(s => s.Category.Warehouse.UserId == userId)
-            .OrderBy(s => s.CreatedAt)
             .AsNoTracking()
+            .Where(s => s.Category.Warehouse.UserId == userId)
+            .OrderBy(s => s.Category.CreatedAt)
+                .ThenBy(s => s.CreatedAt)
+            .Select(s => new
+            {
+                Section = s,
+                CategoryName = s.Category.Name,
+                ItemCount = s.Items.Count
+            })
             .ToListAsync(cancellationToken);
 
         if (sections.Count == 0)
@@ -58,13 +62,20 @@ public class SectionService : ISectionService
             return _responseHandler.Success(emptyResponse, "No sections found.");
         }
 
-        var sectionResults = _mapper.Map<List<GetAllSectionsResult>>(sections);
+        var sectionResults = sections.Select(x =>
+        {
+            var mapped = _mapper.Map<GetAllSectionsResult>(x.Section);
+            mapped.CategoryName = x.CategoryName;
+            mapped.ItemCount = x.ItemCount;
+            return mapped;
+        }).ToList();
+
         var response = new GetAllSectionsResponse
         {
             Sections = sectionResults,
             TotalSections = sectionResults.Count
         };
-        
+
         _logger.LogInformation("Successfully retrieved {TotalSections} sections.", response.TotalSections);
         return _responseHandler.Success(response, "Sections retrieved successfully.");
     }
@@ -82,17 +93,20 @@ public class SectionService : ISectionService
 
         if (category == null)
         {
-            _logger.LogWarning("Category with Id: {CategoryId} not found for user: {UserId}", 
+            _logger.LogWarning("Category with Id: {CategoryId} not found for user: {UserId}",
                 request.CategoryId, userId);
             return _responseHandler.NotFound<GetSectionsOfCategoryResponse>("Category not found.");
         }
 
         var sections = await _context.Sections
-            .Include(s => s.Items)
-            .Include(s => s.Category)
+            .AsNoTracking()
             .Where(s => s.CategoryId == request.CategoryId)
             .OrderBy(s => s.CreatedAt)
-            .AsNoTracking()
+            .Select(s => new
+            {
+                Section = s,
+                ItemCount = s.Items.Count
+            })
             .ToListAsync(cancellationToken);
 
         if (sections.Count == 0)
@@ -108,7 +122,13 @@ public class SectionService : ISectionService
             return _responseHandler.Success(emptyResponse, "No sections found.");
         }
 
-        var sectionResults = _mapper.Map<List<GetSectionsOfCategoryResult>>(sections);
+        var sectionResults = sections.Select(x =>
+        {
+            var mapped = _mapper.Map<GetSectionsOfCategoryResult>(x.Section);
+            mapped.ItemCount = x.ItemCount;
+            return mapped;
+        }).ToList();
+
         var response = new GetSectionsOfCategoryResponse
         {
             Sections = sectionResults,
@@ -127,21 +147,28 @@ public class SectionService : ISectionService
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Retrieving section with Id: {SectionId}", request.Id);
-        var section = await _context.Sections
-            .Include(s => s.Items)
-            .Include(s => s.Category)
-                .ThenInclude(c => c.Warehouse)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == request.Id && s.Category.Warehouse.UserId == userId, cancellationToken);
 
-        if (section == null)
+        var sectionResult = await _context.Sections
+            .AsNoTracking()
+            .Where(s => s.Id == request.Id && s.Category.Warehouse.UserId == userId)
+            .Select(s => new
+            {
+                Section = s,
+                CategoryName = s.Category.Name,
+                ItemCount = s.Items.Count
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (sectionResult == null)
         {
             _logger.LogWarning("Section with Id: {SectionId} not found", request.Id);
             return _responseHandler.NotFound<GetSectionByIdResponse>(
                 $"Section not found.");
         }
 
-        var response = _mapper.Map<GetSectionByIdResponse>(section);
+        var response = _mapper.Map<GetSectionByIdResponse>(sectionResult.Section);
+        response.CategoryName = sectionResult.CategoryName;
+        response.ItemCount = sectionResult.ItemCount;
 
         _logger.LogInformation("Section with Id: {SectionId} retrieved successfully", request.Id);
         return _responseHandler.Success(response, "Section retrieved successfully");
@@ -149,18 +176,17 @@ public class SectionService : ISectionService
 
     public async Task<Response<CreateSectionResponse>> CreateSectionAsync(
         Guid userId,
-        CreateSectionRequest request, 
+        CreateSectionRequest request,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Creating a new section with name: {SectionName}", request.Name);
 
         var category = await _context.Categories
-            .Include(c => c.Warehouse)
             .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.Warehouse.UserId == userId, cancellationToken);
 
         if (category == null)
         {
-            _logger.LogWarning("Category with Id: {CategoryId} not found for user: {UserId}", 
+            _logger.LogWarning("Category with Id: {CategoryId} not found for user: {UserId}",
                 request.CategoryId, userId);
             return _responseHandler.NotFound<CreateSectionResponse>("Category not found.");
         }
@@ -199,8 +225,6 @@ public class SectionService : ISectionService
         _logger.LogInformation("Updating an existing section with Id: {SectionId}", request.Id);
 
         var section = await _context.Sections
-            .Include(s => s.Category)
-                .ThenInclude(c => c.Warehouse)
             .FirstOrDefaultAsync(s => s.Id == request.Id && s.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (section == null)
@@ -235,10 +259,8 @@ public class SectionService : ISectionService
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Deleting section with Id: {SectionId}", request.Id);
+
         var section = await _context.Sections
-            .Include(s => s.Items)
-            .Include(s => s.Category)
-                .ThenInclude(c => c.Warehouse)
             .FirstOrDefaultAsync(s => s.Id == request.Id && s.Category.Warehouse.UserId == userId, cancellationToken);
 
         if (section == null)
@@ -248,12 +270,15 @@ public class SectionService : ISectionService
                 $"Section not found.");
         }
 
-        if (section.Items.Any())
+        var hasItems = await _context.Items
+            .AsNoTracking()
+            .AnyAsync(i => i.SectionId == section.Id, cancellationToken);
+
+        if (hasItems)
         {
-            _logger.LogWarning("Cannot delete section with Id: {SectionId} because it has {ItemCount} items", 
-                request.Id, section.Items.Count);
+            _logger.LogWarning("Cannot delete section with Id: {SectionId} because it has associated items.", request.Id);
             return _responseHandler.BadRequest<DeleteSectionResponse>(
-                $"Cannot delete section '{section.Name}' because it contains {section.Items.Count} item(s). Please remove or reassign the items first.");
+                "Cannot delete section because it has associated items.");
         }
 
         try

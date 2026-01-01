@@ -5,7 +5,7 @@ namespace Warehouse.Api.Validators.Section
 {
     public class UpdateSectionRequestValidator : AbstractValidator<UpdateSectionRequest>
     {
-        public UpdateSectionRequestValidator() 
+        public UpdateSectionRequestValidator()
         {
             RuleFor(x => x.Id)
                 .NotEmpty().WithMessage("Section Id is required");

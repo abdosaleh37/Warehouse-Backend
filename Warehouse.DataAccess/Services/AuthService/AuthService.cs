@@ -3,10 +3,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.Entities.DTO.Auth;
 using Warehouse.Entities.Entities;
@@ -47,7 +45,7 @@ public class AuthService : IAuthService
     }
 
     public async Task<Response<RegisterResponse>> RegisterAsync(
-        RegisterRequest request, 
+        RegisterRequest request,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Registering new user: {UserName}", request.UserName);
@@ -108,7 +106,7 @@ public class AuthService : IAuthService
     }
 
     public async Task<Response<LoginResponse>> LoginAsync(
-        LoginRequest request, 
+        LoginRequest request,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Login attempt for user: {UserName}", request.UserName);
@@ -139,12 +137,12 @@ public class AuthService : IAuthService
             ExpiresAt = DateTime.UtcNow.AddDays(7),
             RefreshToken = tokens.RefreshToken
         };
-        
+
         _logger.LogInformation("User {UserName} logged in successfully.", request.UserName);
         return _responseHandler.Success(response, "Login successful");
     }
 
-    public async Task<Response<RefreshTokenResponse>> RefreshTokenAsync(string refreshToken)
+    public async Task<Response<RefreshTokenResponse>> RefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
         {
@@ -175,7 +173,7 @@ public class AuthService : IAuthService
 
             await transaction.CommitAsync();
 
-            var user = await _userManager.Users.Include(u => u.Warehouse).FirstOrDefaultAsync(u => u.Id == tokenRecord.UserId);
+            var user = await _userManager.Users.Include(u => u.Warehouse).FirstOrDefaultAsync(u => u.Id == tokenRecord.UserId, cancellationToken);
             if (user == null)
             {
                 return _responseHandler.Unauthorized<RefreshTokenResponse>("Invalid refresh token");
@@ -194,7 +192,7 @@ public class AuthService : IAuthService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to refresh token");
-            try { await transaction.RollbackAsync(); } catch {}
+            try { await transaction.RollbackAsync(); } catch { }
             return _responseHandler.ServerError<RefreshTokenResponse>("Failed to process refresh token");
         }
     }

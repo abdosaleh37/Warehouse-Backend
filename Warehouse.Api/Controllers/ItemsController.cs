@@ -6,6 +6,7 @@ using Warehouse.Entities.DTO.Items.Create;
 using Warehouse.Entities.DTO.Items.Delete;
 using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
+using Warehouse.Entities.DTO.Items.GetItemsWithVouchersOfMonth;
 using Warehouse.Entities.DTO.Items.Update;
 using Warehouse.Entities.Shared.ResponseHandling;
 
@@ -21,6 +22,7 @@ public class ItemsController : ControllerBase
     private readonly ILogger<ItemsController> _logger;
     private readonly IValidator<GetItemsOfSectionRequest> _getItemsOfSectionValidator;
     private readonly IValidator<GetItemByIdRequest> _getByIdValidator;
+    private readonly IValidator<GetItemsWithVouchersOfMonthRequest> _getItemsWithVouchersOfMonthValidator;
     private readonly IValidator<CreateItemRequest> _createItemValidator;
     private readonly IValidator<UpdateItemRequest> _updateItemValidator;
     private readonly IValidator<DeleteItemRequest> _deleteItemValidator;
@@ -31,6 +33,7 @@ public class ItemsController : ControllerBase
         ILogger<ItemsController> logger,
         IValidator<GetItemsOfSectionRequest> getItemsOfSectionValidator,
         IValidator<GetItemByIdRequest> getByIdValidator,
+        IValidator<GetItemsWithVouchersOfMonthRequest> getItemsWithVouchersOfMonthValidator,
         IValidator<CreateItemRequest> createItemValidator,
         IValidator<UpdateItemRequest> updateItemValidator,
         IValidator<DeleteItemRequest> deleteItemValidator)
@@ -40,6 +43,7 @@ public class ItemsController : ControllerBase
         _logger = logger;
         _getItemsOfSectionValidator = getItemsOfSectionValidator;
         _getByIdValidator = getByIdValidator;
+        _getItemsWithVouchersOfMonthValidator = getItemsWithVouchersOfMonthValidator;
         _createItemValidator = createItemValidator;
         _updateItemValidator = updateItemValidator;
         _deleteItemValidator = deleteItemValidator;
@@ -90,6 +94,32 @@ public class ItemsController : ControllerBase
                 _responseHandler.BadRequest<object>(errors));
         }
         var response = await _itemService.GetByIdAsync(userId, request, cancellationToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpGet("vouchers/{year:int}/{month:int}")]
+    public async Task<ActionResult<Response<GetItemsWithVouchersOfMonthResponse>>> GetItemsWithVouchersOfMonth(
+        [FromRoute] int year,
+        [FromRoute] int month,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
+        var request = new GetItemsWithVouchersOfMonthRequest { Year = year, Month = month };
+
+        var validationResult = await _getItemsWithVouchersOfMonthValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = validationResult.Errors.FlattenErrors();
+            _logger.LogWarning("Invalid get items with vouchers of month request: {Errors}", errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+        var response = await _itemService.GetItemsWithVouchersOfMonthAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 

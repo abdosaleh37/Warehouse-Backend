@@ -24,9 +24,6 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
         builder.Property(c => c.WarehouseId)
             .IsRequired();
 
-        builder.HasIndex(c => new { c.WarehouseId, c.Name })
-            .IsUnique();
-
         builder.HasOne(c => c.Warehouse)
             .WithMany(w => w.Categories)
             .HasForeignKey(c => c.WarehouseId)

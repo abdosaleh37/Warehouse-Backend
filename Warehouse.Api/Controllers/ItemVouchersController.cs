@@ -5,6 +5,7 @@ using Warehouse.DataAccess.Services.ItemVoucherService;
 using Warehouse.Entities.DTO.ItemVoucher.Create;
 using Warehouse.Entities.DTO.ItemVoucher.Delete;
 using Warehouse.Entities.DTO.ItemVoucher.GetById;
+using Warehouse.Entities.DTO.ItemVoucher.GetMonthlyVouchersOfItem;
 using Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem;
 using Warehouse.Entities.DTO.ItemVoucher.Update;
 using Warehouse.Entities.Shared.ResponseHandling;
@@ -20,6 +21,7 @@ public class ItemVouchersController : ControllerBase
     private readonly IItemVoucherService _itemVoucherService;
     private readonly ILogger<ItemVouchersController> _logger;
     private readonly IValidator<GetVouchersOfItemRequest> _getVouchersOfItemValidator;
+    private readonly IValidator<GetMonthlyVouchersOfItemRequest> _getMonthlyVouchersOfItemValidator;
     private readonly IValidator<GetVoucherByIdRequest> _getVoucherByIdValidator;
     private readonly IValidator<CreateVoucherRequest> _createVoucherValidator;
     private readonly IValidator<UpdateVoucherRequest> _updateVoucherValidator;
@@ -30,6 +32,7 @@ public class ItemVouchersController : ControllerBase
         ILogger<ItemVouchersController> logger,
         IItemVoucherService itemVoucherService,
         IValidator<GetVouchersOfItemRequest> getVouchersOfItemValidator,
+        IValidator<GetMonthlyVouchersOfItemRequest> getMonthlyVouchersOfItemValidator,
         IValidator<GetVoucherByIdRequest> getVoucherByIdValidator,
         IValidator<CreateVoucherRequest> createVoucherValidator,
         IValidator<UpdateVoucherRequest> updateVoucherValidator,
@@ -39,6 +42,7 @@ public class ItemVouchersController : ControllerBase
         _logger = logger;
         _itemVoucherService = itemVoucherService;
         _getVouchersOfItemValidator = getVouchersOfItemValidator;
+        _getMonthlyVouchersOfItemValidator = getMonthlyVouchersOfItemValidator;
         _getVoucherByIdValidator = getVoucherByIdValidator;
         _createVoucherValidator = createVoucherValidator;
         _updateVoucherValidator = updateVoucherValidator;
@@ -92,6 +96,34 @@ public class ItemVouchersController : ControllerBase
         }
 
         var response = await _itemVoucherService.GetVoucherByIdAsync(userId, request, cancellationToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpGet("item/{id:guid}/monthly")]
+    public async Task<ActionResult<Response<GetMonthlyVouchersOfItemResponse>>> GetMonthlyVouchersOfItem(
+        [FromRoute] Guid id,
+        [FromQuery] int year,
+        [FromQuery] int month,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
+        var request = new GetMonthlyVouchersOfItemRequest { ItemId = id, Year = year, Month = month };
+
+        var validationResult = await _getMonthlyVouchersOfItemValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = validationResult.Errors.FlattenErrors();
+            _logger.LogWarning("Invalid get monthly vouchers of item request: {Errors}", errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+
+        var response = await _itemVoucherService.GetMonthlyVouchersOfItemAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 
