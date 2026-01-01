@@ -23,7 +23,7 @@ public class ItemVoucherService : IItemVoucherService
     public ItemVoucherService(
         IMapper mapper,
         ILogger<ItemVoucherService> logger,
-        WarehouseDbContext context, 
+        WarehouseDbContext context,
         ResponseHandler responseHandler)
     {
         _logger = logger;
@@ -138,7 +138,7 @@ public class ItemVoucherService : IItemVoucherService
         GetMonthlyVouchersOfItemRequest request,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Getting vouchers for item {ItemId} of month {Month}/{Year} by user {UserId}", 
+        _logger.LogInformation("Getting vouchers for item {ItemId} of month {Month}/{Year} by user {UserId}",
             request.ItemId, request.Month, request.Year, userId);
 
         var item = await _context.Items
@@ -250,7 +250,7 @@ public class ItemVoucherService : IItemVoucherService
 
         if (projectedAvailable < 0)
         {
-            _logger.LogWarning("Insufficient quantity for item {ItemId} when creating voucher by user {UserId}. Projected available: {Projected}", 
+            _logger.LogWarning("Insufficient quantity for item {ItemId} when creating voucher by user {UserId}. Projected available: {Projected}",
                 item.Id, userId, projectedAvailable);
             return _responseHandler.BadRequest<CreateVoucherResponse>("Insufficient available quantity for this voucher.");
         }

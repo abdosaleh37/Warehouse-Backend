@@ -1,98 +1,109 @@
 # Warehouse Backend API
 
-A robust .NET-based RESTful API for warehouse management, featuring authentication, inventory tracking, section management, and voucher operations.
+A robust .NET-based RESTful API for warehouse management, featuring authentication, inventory tracking, categories, sections management, and voucher operations.
 
 ## 📋 Overview
 
-This is a multi-layered ASP.NET Core Web API built with .NET 10.0, implementing clean architecture principles with separate projects for API, Data Access, Domain, and Entities.
+This is a multi-layered ASP.NET Core Web API built with .NET 10.0, implementing clean architecture principles with separate projects for API, Data Access, and Entities.
 
 ## 🏗️ Architecture
 
-The solution consists of four main projects:
+The solution consists of three main projects:
 
-- **Warehouse.Api** - Web API layer with controllers (Auth, Items, Sections, ItemVouchers), validators, extensions, and API configuration
+- **Warehouse.Api** - Web API layer with controllers, validators, extensions, and API configuration
 - **Warehouse.DataAccess** - Data access layer with DbContext, entity configurations, Mapster mappings, EF Core migrations, and domain services
-- **Warehouse.Domain** - Domain layer for business logic and domain models
 - **Warehouse.Entities** - Entity models, DTOs, shared utilities, and response handling
 
 ## 🚀 Features
 
-- **Authentication & Authorization** - JWT-based authentication with ASP.NET Core Identity
+- **Authentication & Authorization** - JWT-based authentication with refresh tokens using ASP.NET Core Identity
+- **Warehouse Management** - Multi-warehouse support per user
+- **Categories Management** - Organize items into categories within warehouses
 - **Items Management** - Full CRUD operations for warehouse inventory items
-- **Sections Management** - Organize warehouse into logical sections with timestamps
+- **Sections Management** - Organize warehouse into logical sections
 - **Item Vouchers** - Track item movements, transactions, and audit trails
 - **Request Validation** - FluentValidation for input validation on all API endpoints
 - **Auto-mapping** - Mapster for efficient DTO-to-Entity mapping
 - **Structured Logging** - Serilog with console and rolling file output
-- **API Documentation** - Swagger/OpenAPI integration for interactive API exploration
+- **API Documentation** - NSwag/OpenAPI integration for interactive API exploration
 - **Database Migrations** - Entity Framework Core migrations for version control
+- **File Upload** - Uploadcare integration for image management
+- **Caching** - Redis support for improved performance
 
 ## 🛠️ Technology Stack
 
-- **Framework**: .NET 10.0
-- **ORM**: Entity Framework Core 10.0
-- **Database**: SQL Server
-- **Authentication**: ASP.NET Core Identity + JWT Bearer
-- **Logging**: Serilog
-- **Validation**: FluentValidation
-- **Mapping**: Mapster
-- **API Documentation**: Swagger/Swashbuckle
+| Category | Technology |
+|----------|------------|
+| Framework | .NET 10.0 |
+| ORM | Entity Framework Core 10.0 |
+| Database | SQL Server |
+| Authentication | ASP.NET Core Identity + JWT Bearer |
+| Logging | Serilog |
+| Validation | FluentValidation |
+| Mapping | Mapster |
+| API Documentation | NSwag |
+| Caching | Redis (StackExchange.Redis) |
+| File Storage | Uploadcare |
 
 ## 📦 Prerequisites
 
 - [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - SQL Server (LocalDB, Express, or full version)
+- Redis (optional, for caching)
 - Visual Studio 2022 or Visual Studio Code
 - Git
 
 ## ⚙️ Configuration
 
-### Database Connection
+### Environment Variables
 
-Update the connection string in `Warehouse.Api/appsettings.json`:
+The application uses the following configuration sections that should be set via environment variables or user secrets for production:
 
-```json
-{
-  "ConnectionStrings": {
-    "DevCS": "Server=.;Database=WarehouseDB;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true"
-  },
-  "ConnectionMode": "Dev"
-}
+| Configuration | Description |
+|--------------|-------------|
+| `ConnectionStrings:DevCS` | SQL Server connection string for development |
+| `ConnectionStrings:ProdCS` | SQL Server connection string for production |
+| `ConnectionMode` | Set to `Dev` or `Prod` to select connection string |
+| `JWT:SigningKey` | Secret key for JWT token signing (min 32 characters) |
+| `JWT:Issuer` | JWT token issuer |
+| `JWT:Audience` | JWT token audience |
+| `JWT:AccessTokenExpiryInMinutes` | Access token expiration time |
+| `JWT:RefreshTokenExpiryInDays` | Refresh token expiration time |
+| `Uploadcare:PublicKey` | Uploadcare public API key |
+| `Uploadcare:SecretKey` | Uploadcare secret API key |
+| `Redis:ConnectionString` | Redis connection string |
+
+> ⚠️ **Security Note**: Never commit sensitive configuration values to source control. Use environment variables, user secrets, or a secure vault service (e.g., Azure Key Vault) in production.
+
+### Setting Up User Secrets (Development)
+
+```bash
+cd Warehouse.Api
+dotnet user-secrets init
+dotnet user-secrets set "JWT:SigningKey" "your-secret-key-here"
+dotnet user-secrets set "ConnectionStrings:DevCS" "your-connection-string"
 ```
-
-### JWT Settings
-
-Configure JWT settings in `appsettings.json`:
-
-```json
-{
-  "JWT": {
-    "SigningKey": "YourSecretKeyThatIsAtLeast32CharactersLong!",
-    "Issuer": "WarehouseAPI",
-    "Audience": "WarehouseClients",
-    "ExpiryInMinutes": 60
-  }
-}
-```
-
-> ⚠️ **Security Note**: Always use a strong, unique signing key in production and store it securely (e.g., in Azure Key Vault or environment variables).
 
 ## 🚀 Getting Started
 
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/yourusername/Warehouse-Backend.git
 cd Warehouse-Backend
 ```
 
-### 2. Restore Dependencies
+### 2. Configure the Application
+
+Set up your configuration using user secrets or environment variables as described above.
+
+### 3. Restore Dependencies
 
 ```bash
 dotnet restore
 ```
 
-### 3. Update Database
+### 4. Update Database
 
 Run Entity Framework migrations to create the database:
 
@@ -101,45 +112,62 @@ cd Warehouse.Api
 dotnet ef database update
 ```
 
-### 4. Run the Application
+### 5. Run the Application
 
 ```bash
 dotnet run --project Warehouse.Api
 ```
 
-The API will be available at:
-- HTTPS: `https://localhost:5001`
-- HTTP: `http://localhost:5000`
-- Swagger UI: `https://localhost:5001/swagger`
+The API will be available at the configured URLs. Access Swagger UI at `/swagger` for interactive API documentation.
 
 ## 📚 API Endpoints
 
+All endpoints except authentication require a valid JWT token in the `Authorization` header.
+
 ### Authentication
-- `POST /api/Auth/register` - Register new user
-- `POST /api/Auth/login` - User login (returns JWT token)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/Auth/register` | Register a new user |
+| POST | `/api/Auth/login` | User login (returns JWT tokens) |
+| POST | `/api/Auth/refresh` | Refresh access token |
+
+### Categories
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/Categories` | Get all categories |
+| GET | `/api/Categories/{id}` | Get category by ID |
+| POST | `/api/Categories` | Create new category |
+| PUT | `/api/Categories/{id}` | Update category |
+| DELETE | `/api/Categories/{id}` | Delete category |
 
 ### Items
-- `GET /api/Items` - Get all items
-- `GET /api/Items/{id}` - Get item by ID
-- `POST /api/Items` - Create new item
-- `PUT /api/Items/{id}` - Update item
-- `DELETE /api/Items/{id}` - Delete item
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/Items` | Get all items |
+| GET | `/api/Items/{id}` | Get item by ID |
+| POST | `/api/Items` | Create new item |
+| PUT | `/api/Items/{id}` | Update item |
+| DELETE | `/api/Items/{id}` | Delete item |
 
 ### Sections
-- `GET /api/Sections` - Get all sections
-- `GET /api/Sections/{id}` - Get section by ID
-- `POST /api/Sections` - Create new section
-- `PUT /api/Sections/{id}` - Update section
-- `DELETE /api/Sections/{id}` - Delete section
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/Sections` | Get all sections |
+| GET | `/api/Sections/{id}` | Get section by ID |
+| POST | `/api/Sections` | Create new section |
+| PUT | `/api/Sections/{id}` | Update section |
+| DELETE | `/api/Sections/{id}` | Delete section |
 
 ### Item Vouchers
-- `GET /api/ItemVouchers` - Get all vouchers
-- `GET /api/ItemVouchers/{id}` - Get voucher by ID
-- `POST /api/ItemVouchers` - Create new voucher
-- `PUT /api/ItemVouchers/{id}` - Update voucher
-- `DELETE /api/ItemVouchers/{id}` - Delete voucher
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/ItemVouchers` | Get all vouchers |
+| GET | `/api/ItemVouchers/{id}` | Get voucher by ID |
+| POST | `/api/ItemVouchers` | Create new voucher |
+| PUT | `/api/ItemVouchers/{id}` | Update voucher |
+| DELETE | `/api/ItemVouchers/{id}` | Delete voucher |
 
-> 📖 For detailed API documentation, visit the Swagger UI at `/swagger` when running the application.
+> 📖 For detailed API documentation including request/response schemas, visit the Swagger UI at `/swagger` when running the application.
 
 ## 🗄️ Database Migrations
 
@@ -164,79 +192,91 @@ dotnet ef migrations remove --project ../Warehouse.DataAccess
 
 ## 📝 Logging
 
-Logs are written to:
-- **Console** - Real-time console output
-- **File** - `Warehouse.Api/Logs/warehouse-log-YYYYMMDD.txt`
-  - Rolling daily logs
-  - Retains last 30 days
+Logs are configured using Serilog with the following outputs:
 
-Configure logging levels in `appsettings.json`:
+- **Console** - Real-time console output for development
+- **File** - Rolling daily log files
+  - Location: `Warehouse.Api/Logs/`
+  - Format: `warehouse-log-YYYYMMDD.txt`
+  - Retention: 30 days
 
-```json
-{
-  "Serilog": {
-    "MinimumLevel": {
-      "Default": "Information",
-      "Override": {
-        "Microsoft": "Warning"
-      }
-    }
-  }
-}
-```
+## 🔐 Security Best Practices
 
-## 🔐 Security
-
-- JWT authentication required for protected endpoints
+- JWT authentication required for all protected endpoints
+- Refresh token rotation for enhanced security
 - Password hashing with ASP.NET Core Identity
-- CORS configuration in `Program.cs`
+- CORS policy configured for allowed origins
 - HTTPS enforced in production
-
-## 🧪 Testing
-
-```bash
-# Run all tests
-dotnet test
-
-# Run tests with coverage
-dotnet test /p:CollectCoverage=true
-```
+- User secrets for development configuration
+- Environment variables for production secrets
 
 ## 📁 Project Structure
 
 ```
 Warehouse-Backend/
 ├── Warehouse.Api/                   # Web API layer
-│   ├── Controllers/                 # API endpoints (Auth, Items, Sections, ItemVouchers)
+│   ├── Controllers/                 # API endpoints
+│   │   ├── AuthController.cs
+│   │   ├── CategoriesController.cs
+│   │   ├── ItemsController.cs
+│   │   ├── ItemVouchersController.cs
+│   │   └── SectionsController.cs
 │   ├── Extensions/                  # Service collection extensions
 │   ├── Validators/                  # FluentValidation validators
-│   ├── Logs/                        # Rolling daily application logs
+│   │   ├── Auth/
+│   │   ├── Category/
+│   │   ├── Item/
+│   │   ├── ItemVoucher/
+│   │   └── Section/
 │   ├── Properties/                  # Launch settings
-│   ├── appsettings.json             # Configuration (development & production)
 │   └── Program.cs                   # Application entry point
+│
 ├── Warehouse.DataAccess/            # Data access layer
-│   ├── ApplicationDbContext/        # EF Core DbContext (WarehouseDbContext)
-│   ├── EntitiesConfigurations/      # Entity configurations
-│   ├── Mappings/                    # Mapster mapping profiles (Auth, Item, ItemVoucher, Section)
-│   ├── Migrations/                  # EF Core database migrations
-│   ├── Services/                    # Domain services (AuthService, ItemService, ItemVoucherService, SectionService)
-│   └── Extensions/                  # Data access service extensions
+│   ├── ApplicationDbContext/        # EF Core DbContext
+│   ├── EntitiesConfigurations/      # Entity type configurations
+│   ├── Mappings/                    # Mapster mapping profiles
+│   ├── Migrations/                  # EF Core migrations
+│   ├── Services/                    # Domain services
+│   │   ├── AuthService/
+│   │   ├── CategoryService/
+│   │   ├── ItemService/
+│   │   ├── ItemVoucherService/
+│   │   ├── SectionService/
+│   │   └── TokenService/
+│   └── Extensions/                  # DI extensions
+│
 ├── Warehouse.Entities/              # Entities and DTOs
-│   ├── Entities/                    # Domain models (ApplicationUser, Item, ItemVoucher, Section)
-│   ├── DTO/                         # Data transfer objects by entity
-│   ├── Shared/                      # Response handling and shared models
+│   ├── Entities/                    # Domain models
+│   │   ├── ApplicationUser.cs
+│   │   ├── Category.cs
+│   │   ├── Item.cs
+│   │   ├── ItemVoucher.cs
+│   │   ├── Section.cs
+│   │   ├── UserRefreshToken.cs
+│   │   └── Warehouse.cs
+│   ├── DTO/                         # Data transfer objects
+│   ├── Shared/                      # Response handling
 │   └── Utilities/                   # Helper utilities
+│
 └── Warehouse-Backend.slnx           # Solution file
 ```
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+### Development Guidelines
+
+- Follow C# coding conventions
+- Write meaningful commit messages
+- Add appropriate validation for new endpoints
+- Update documentation for API changes
+- Ensure all tests pass before submitting PR
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

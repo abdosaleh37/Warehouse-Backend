@@ -20,7 +20,7 @@ namespace Warehouse.DataAccess.Services.CategoryService
 
         Task<Response<CreateCategoryResponse>> CreateCategoryAsync(
             Guid userId,
-            CreateCategoryRequest request, 
+            CreateCategoryRequest request,
             CancellationToken cancellationToken);
 
         Task<Response<UpdateCategoryResponse>> UpdateCategoryAsync(

@@ -72,7 +72,8 @@ public class ItemService : IItemService
 
         }
 
-        var itemResults = items.Select(x => {
+        var itemResults = items.Select(x =>
+        {
             var mapped = _mapper.Map<GetItemsOfSectionResult>(x.Item);
             mapped.AvailableQuantity = x.Item.OpeningQuantity + x.NetQuantity;
             mapped.AvailableValue = (x.Item.OpeningUnitPrice * x.Item.OpeningQuantity) + x.NetValue;
@@ -252,8 +253,8 @@ public class ItemService : IItemService
         {
             var existingWithCode = await _context.Items
                 .AsNoTracking()
-                .FirstOrDefaultAsync(i => i.SectionId == item.SectionId 
-                        && i.ItemCode == request.ItemCode 
+                .FirstOrDefaultAsync(i => i.SectionId == item.SectionId
+                        && i.ItemCode == request.ItemCode
                         && i.Id != item.Id, cancellationToken);
 
             if (existingWithCode != null)

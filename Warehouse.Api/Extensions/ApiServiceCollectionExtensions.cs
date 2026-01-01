@@ -1,13 +1,13 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using NSwag;
+using NSwag.Generation.Processors.Security;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 using System.Reflection;
 using System.Text;
 using System.Text.Json.Serialization;
 using Warehouse.Entities.Utilities.Configurations;
-using NSwag;
-using NSwag.Generation.Processors.Security;
 
 namespace Warehouse.Api.Extensions;
 

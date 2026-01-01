@@ -12,7 +12,7 @@ public class Program
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Information()
             .WriteTo.Console()
-            .WriteTo.File("Logs/warehouse-log-.txt", 
+            .WriteTo.File("Logs/warehouse-log-.txt",
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 30)
             .CreateLogger();

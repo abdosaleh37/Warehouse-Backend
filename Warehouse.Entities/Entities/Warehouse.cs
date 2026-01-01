@@ -1,4 +1,5 @@
 ﻿namespace Warehouse.Entities.Entities;
+
 public class Warehouse
 {
     public Guid Id { get; set; }

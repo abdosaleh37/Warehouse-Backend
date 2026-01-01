@@ -1,6 +1,4 @@
-﻿using Warehouse.Entities.Entities;
-
-namespace Warehouse.Entities.DTO.Items.GetItemsOfSection
+﻿namespace Warehouse.Entities.DTO.Items.GetItemsOfSection
 {
     public class GetItemsOfSectionResponse
     {

@@ -7,10 +7,8 @@ using Warehouse.Entities.DTO.Category.Delete;
 using Warehouse.Entities.DTO.Category.GetAll;
 using Warehouse.Entities.DTO.Category.GetById;
 using Warehouse.Entities.DTO.Category.Update;
-using Warehouse.Entities.DTO.Section.Delete;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
-using static System.Collections.Specialized.BitVector32;
 
 namespace Warehouse.DataAccess.Services.CategoryService
 {
@@ -72,7 +70,8 @@ namespace Warehouse.DataAccess.Services.CategoryService
                 }, "No categories found.");
             }
 
-            var categoriesResult = categories.Select(x => {
+            var categoriesResult = categories.Select(x =>
+            {
                 var mapped = _mapper.Map<GetAllCategoriesResult>(x.Category);
                 mapped.SectionCount = x.SectionCount;
                 return mapped;
@@ -129,7 +128,7 @@ namespace Warehouse.DataAccess.Services.CategoryService
 
         public async Task<Response<CreateCategoryResponse>> CreateCategoryAsync(
             Guid userId,
-            CreateCategoryRequest request, 
+            CreateCategoryRequest request,
             CancellationToken cancellationToken)
         {
             _logger.LogInformation("Creating a new category with name: {CategoryName} for User: {UserId}", request.Name, userId);

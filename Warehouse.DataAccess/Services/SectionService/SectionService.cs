@@ -22,7 +22,7 @@ public class SectionService : ISectionService
 
     public SectionService(
         ILogger<SectionService> logger,
-        IMapper mapper, 
+        IMapper mapper,
         WarehouseDbContext context,
         ResponseHandler responseHandler)
     {
@@ -62,7 +62,8 @@ public class SectionService : ISectionService
             return _responseHandler.Success(emptyResponse, "No sections found.");
         }
 
-        var sectionResults = sections.Select(x => {
+        var sectionResults = sections.Select(x =>
+        {
             var mapped = _mapper.Map<GetAllSectionsResult>(x.Section);
             mapped.CategoryName = x.CategoryName;
             mapped.ItemCount = x.ItemCount;
@@ -74,7 +75,7 @@ public class SectionService : ISectionService
             Sections = sectionResults,
             TotalSections = sectionResults.Count
         };
-        
+
         _logger.LogInformation("Successfully retrieved {TotalSections} sections.", response.TotalSections);
         return _responseHandler.Success(response, "Sections retrieved successfully.");
     }
@@ -92,7 +93,7 @@ public class SectionService : ISectionService
 
         if (category == null)
         {
-            _logger.LogWarning("Category with Id: {CategoryId} not found for user: {UserId}", 
+            _logger.LogWarning("Category with Id: {CategoryId} not found for user: {UserId}",
                 request.CategoryId, userId);
             return _responseHandler.NotFound<GetSectionsOfCategoryResponse>("Category not found.");
         }
@@ -121,7 +122,8 @@ public class SectionService : ISectionService
             return _responseHandler.Success(emptyResponse, "No sections found.");
         }
 
-        var sectionResults = sections.Select(x => {
+        var sectionResults = sections.Select(x =>
+        {
             var mapped = _mapper.Map<GetSectionsOfCategoryResult>(x.Section);
             mapped.ItemCount = x.ItemCount;
             return mapped;
@@ -174,7 +176,7 @@ public class SectionService : ISectionService
 
     public async Task<Response<CreateSectionResponse>> CreateSectionAsync(
         Guid userId,
-        CreateSectionRequest request, 
+        CreateSectionRequest request,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Creating a new section with name: {SectionName}", request.Name);
@@ -184,7 +186,7 @@ public class SectionService : ISectionService
 
         if (category == null)
         {
-            _logger.LogWarning("Category with Id: {CategoryId} not found for user: {UserId}", 
+            _logger.LogWarning("Category with Id: {CategoryId} not found for user: {UserId}",
                 request.CategoryId, userId);
             return _responseHandler.NotFound<CreateSectionResponse>("Category not found.");
         }

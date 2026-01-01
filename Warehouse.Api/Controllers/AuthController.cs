@@ -17,10 +17,10 @@ public class AuthController : ControllerBase
     private readonly ResponseHandler _responseHandler;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService, 
-        IValidator<RegisterRequest> registerValidator, 
-        IValidator<LoginRequest> loginValidator, 
-        ResponseHandler responseHandler, 
+    public AuthController(IAuthService authService,
+        IValidator<RegisterRequest> registerValidator,
+        IValidator<LoginRequest> loginValidator,
+        ResponseHandler responseHandler,
         ILogger<AuthController> logger)
     {
         _authService = authService;
@@ -32,7 +32,7 @@ public class AuthController : ControllerBase
 
     [HttpPost("register")]
     public async Task<ActionResult<Response<RegisterResponse>>> Register(
-        [FromBody] RegisterRequest request, 
+        [FromBody] RegisterRequest request,
         CancellationToken cancellationToken)
     {
         var validationResult = await _registerValidator.ValidateAsync(request, cancellationToken);
@@ -50,7 +50,7 @@ public class AuthController : ControllerBase
 
     [HttpPost("login")]
     public async Task<ActionResult<Response<LoginResponse>>> Login(
-        [FromBody] LoginRequest request, 
+        [FromBody] LoginRequest request,
         CancellationToken cancellationToken)
     {
         var validationResult = await _loginValidator.ValidateAsync(request, cancellationToken);

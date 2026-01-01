@@ -78,17 +78,17 @@ public static class DataAccessServiceCollectionExtensions
     private static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         services.AddScoped<ResponseHandler>();
-        
+
         // Authentication
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITokenStoreService, TokenStoreService>();
-        
+
         // Warehouse services
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ISectionService, SectionService>();
         services.AddScoped<IItemService, ItemService>();
         services.AddScoped<IItemVoucherService, ItemVoucherService>();
-        
+
         return services;
     }
 }

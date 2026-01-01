@@ -1,13 +1,13 @@
+using System.Security.Claims;
 using Warehouse.Entities.DTO.Auth;
 using Warehouse.Entities.Shared.ResponseHandling;
-using System.Security.Claims;
 
 namespace Warehouse.DataAccess.Services.AuthService;
 
 public interface IAuthService
 {
     Task<Response<RegisterResponse>> RegisterAsync(
-        RegisterRequest request, 
+        RegisterRequest request,
         CancellationToken cancellationToken = default);
 
     Task<Response<LoginResponse>> LoginAsync(
