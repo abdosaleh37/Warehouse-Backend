@@ -24,9 +24,6 @@ public class SectionConfiguration : IEntityTypeConfiguration<Section>
         builder.Property(s => s.CategoryId)
             .IsRequired();
 
-        builder.HasIndex(s => s.Name)
-            .IsUnique();
-
         builder.HasOne(s => s.Category)
             .WithMany(c => c.Sections)
             .HasForeignKey(s => s.CategoryId)

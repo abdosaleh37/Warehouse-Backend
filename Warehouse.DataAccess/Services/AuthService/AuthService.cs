@@ -142,7 +142,7 @@ public class AuthService : IAuthService
         return _responseHandler.Success(response, "Login successful");
     }
 
-    public async Task<Response<RefreshTokenResponse>> RefreshTokenAsync(string refreshToken)
+    public async Task<Response<RefreshTokenResponse>> RefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
         {
@@ -173,7 +173,7 @@ public class AuthService : IAuthService
 
             await transaction.CommitAsync();
 
-            var user = await _userManager.Users.Include(u => u.Warehouse).FirstOrDefaultAsync(u => u.Id == tokenRecord.UserId);
+            var user = await _userManager.Users.Include(u => u.Warehouse).FirstOrDefaultAsync(u => u.Id == tokenRecord.UserId, cancellationToken);
             if (user == null)
             {
                 return _responseHandler.Unauthorized<RefreshTokenResponse>("Invalid refresh token");

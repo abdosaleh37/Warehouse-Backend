@@ -18,17 +18,33 @@ public static class ApiServiceCollectionExtensions
     {
         services.AddCors(options =>
         {
+            var allowedOrigins = configuration.GetSection("AllowedOrigins").Get<string[]>() 
+                ?? new[] { "*" };
+
             options.AddPolicy("WarehousePolicy", builder =>
-                builder
-                .AllowAnyOrigin()
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-             );
+            {
+                if (allowedOrigins.Length == 1 && allowedOrigins[0] == "*")
+                {
+                    // Development: Allow any origin
+                    builder.AllowAnyOrigin()
+                           .AllowAnyMethod()
+                           .AllowAnyHeader();
+                }
+                else
+                {
+                    // Production: Restrict to specific origins
+                    builder.WithOrigins(allowedOrigins)
+                           .AllowAnyMethod()
+                           .AllowAnyHeader()
+                           .AllowCredentials();
+                }
+            });
         });
 
         services.AddAuthConfig(configuration)
             .AddSwaggerServices()
-            .AddFluentValidationConfig();
+            .AddFluentValidationConfig()
+            .AddRequestSizeLimits();
 
         services.AddControllers()
             .AddJsonOptions(options =>
@@ -51,6 +67,12 @@ public static class ApiServiceCollectionExtensions
             .AddJwtBearer(options =>
             {
                 var jwtSettings = configuration.GetSection("JWT").Get<JwtSettings>();
+                
+                if (string.IsNullOrEmpty(jwtSettings?.SigningKey))
+                {
+                    throw new InvalidOperationException("JWT SigningKey is not configured. Set it via user secrets or environment variables.");
+                }
+
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = !string.IsNullOrEmpty(jwtSettings?.Issuer),
@@ -58,7 +80,7 @@ public static class ApiServiceCollectionExtensions
                     ValidateAudience = !string.IsNullOrEmpty(jwtSettings?.Audience),
                     ValidAudience = jwtSettings?.Audience,
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings?.SigningKey ?? "")),
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SigningKey)),
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero
                 };
@@ -103,6 +125,18 @@ public static class ApiServiceCollectionExtensions
         services
            .AddFluentValidationAutoValidation()
            .AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
+        return services;
+    }
+
+    private static IServiceCollection AddRequestSizeLimits(this IServiceCollection services)
+    {
+        services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+        {
+            options.MultipartBodyLengthLimit = 10 * 1024 * 1024; // 10 MB
+            options.ValueLengthLimit = 10 * 1024 * 1024;
+            options.MultipartHeadersLengthLimit = 10 * 1024 * 1024;
+        });
 
         return services;
     }
