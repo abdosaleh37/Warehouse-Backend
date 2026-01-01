@@ -2,6 +2,9 @@
 
 A robust .NET-based RESTful API for warehouse management, featuring authentication, inventory tracking, categories, sections management, and voucher operations.
 
+**🌐 Live API:** [http://shamtex-warehouse.runasp.net](http://shamtex-warehouse.runasp.net)  
+**📖 API Documentation:** [http://shamtex-warehouse.runasp.net/swagger](http://shamtex-warehouse.runasp.net/swagger)
+
 ## 📋 Overview
 
 This is a multi-layered ASP.NET Core Web API built with .NET 10.0, implementing clean architecture principles with separate projects for API, Data Access, and Entities.
@@ -27,8 +30,6 @@ The solution consists of three main projects:
 - **Structured Logging** - Serilog with console and rolling file output
 - **API Documentation** - NSwag/OpenAPI integration for interactive API exploration
 - **Database Migrations** - Entity Framework Core migrations for version control
-- **File Upload** - Uploadcare integration for image management
-- **Caching** - Redis support for improved performance
 
 ## 🛠️ Technology Stack
 
@@ -42,14 +43,11 @@ The solution consists of three main projects:
 | Validation | FluentValidation |
 | Mapping | Mapster |
 | API Documentation | NSwag |
-| Caching | Redis (StackExchange.Redis) |
-| File Storage | Uploadcare |
 
 ## 📦 Prerequisites
 
 - [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - SQL Server (LocalDB, Express, or full version)
-- Redis (optional, for caching)
 - Visual Studio 2022 or Visual Studio Code
 - Git
 
@@ -69,11 +67,7 @@ The application uses the following configuration sections that should be set via
 | `JWT:Audience` | JWT token audience |
 | `JWT:AccessTokenExpiryInMinutes` | Access token expiration time |
 | `JWT:RefreshTokenExpiryInDays` | Refresh token expiration time |
-| `Uploadcare:PublicKey` | Uploadcare public API key |
-| `Uploadcare:SecretKey` | Uploadcare secret API key |
-| `Redis:ConnectionString` | Redis connection string |
 
-> ⚠️ **Security Note**: Never commit sensitive configuration values to source control. Use environment variables, user secrets, or a secure vault service (e.g., Azure Key Vault) in production.
 
 ### Setting Up User Secrets (Development)
 
@@ -122,14 +116,16 @@ The API will be available at the configured URLs. Access Swagger UI at `/swagger
 
 ## 📚 API Endpoints
 
-All endpoints except authentication require a valid JWT token in the `Authorization` header.
+**Base URL:** `http://shamtex-warehouse.runasp.net/api`
+
+All endpoints except authentication require a valid JWT token in the `Authorization` header as `Bearer {token}`.
 
 ### Authentication
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/Auth/register` | Register a new user |
 | POST | `/api/Auth/login` | User login (returns JWT tokens) |
-| POST | `/api/Auth/refresh` | Refresh access token |
+| POST | `/api/Auth/refresh-token` | Refresh access token |
 
 ### Categories
 | Method | Endpoint | Description |
@@ -167,7 +163,7 @@ All endpoints except authentication require a valid JWT token in the `Authorizat
 | PUT | `/api/ItemVouchers/{id}` | Update voucher |
 | DELETE | `/api/ItemVouchers/{id}` | Delete voucher |
 
-> 📖 For detailed API documentation including request/response schemas, visit the Swagger UI at `/swagger` when running the application.
+> 📖 For detailed API documentation including request/response schemas, visit the **[Live Swagger UI](http://shamtex-warehouse.runasp.net/swagger)**.
 
 ## 🗄️ Database Migrations
 
@@ -260,23 +256,3 @@ Warehouse-Backend/
 │
 └── Warehouse-Backend.slnx           # Solution file
 ```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Guidelines
-
-- Follow C# coding conventions
-- Write meaningful commit messages
-- Add appropriate validation for new endpoints
-- Update documentation for API changes
-- Ensure all tests pass before submitting PR
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
