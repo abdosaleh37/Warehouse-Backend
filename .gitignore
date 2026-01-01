@@ -395,12 +395,19 @@ FodyWeavers.xsd
 
 ## Warehouse Project Specific
 
-# Application Settings - IMPORTANT: Don't commit secrets!
+# Application Settings - SECURITY: Keep credentials out of Git!
+# Strategy: Ignore all appsettings by default, allow only safe templates
+appsettings.json
+appsettings.*.json
+
+# Only allow these safe template files (no credentials)
+!appsettings.Development.json
+!appsettings.example.json
+
+# NEVER commit these production/staging files with real credentials
 appsettings.Production.json
 appsettings.Staging.json
-appsettings.*.json
-!appsettings.json
-!appsettings.Development.json
+appsettings.Local.json
 
 # Logs
 Logs/
@@ -420,9 +427,19 @@ Logs/
 *.pfx
 *.cer
 
+# User Secrets (safe - stored outside repo)
+secrets.json
+
+# Publish output folder
+publish/
+Publish/
+
 # Migration snapshots (optional - uncomment if you want to ignore)
 # **/Migrations/
 
 # Upload/Temp files
 wwwroot/uploads/
 Temp/
+
+# Deployment documentation with embedded credentials (if any)
+# DEPLOYMENT_CREDENTIALS.md
