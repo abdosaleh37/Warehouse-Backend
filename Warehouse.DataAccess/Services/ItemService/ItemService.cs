@@ -7,6 +7,7 @@ using Warehouse.Entities.DTO.Items.Delete;
 using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
 using Warehouse.Entities.DTO.Items.GetItemsWithVouchersOfMonth;
+using Warehouse.Entities.DTO.Items.Search;
 using Warehouse.Entities.DTO.Items.Update;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
@@ -50,7 +51,8 @@ public class ItemService : IItemService
         var items = await _context.Items
             .AsNoTracking()
             .Where(i => i.SectionId == request.SectionId)
-            .OrderBy(i => i.CreatedAt)
+            .OrderBy(i => i.ItemCode)
+                .ThenBy(i => i.Id)
             .Select(i => new
             {
                 Item = i,
@@ -141,23 +143,12 @@ public class ItemService : IItemService
             .AsNoTracking()
             .Where(i => i.Section.Category.Warehouse.UserId == userId &&
                         i.ItemVouchers.Any(v => v.VoucherDate >= startOfMonth && v.VoucherDate < startOfNextMonth))
-            .Select(i => new GetItemsWithVouchersOfMonthResult
+            .Select(i => new
             {
-                Id = i.Id,
-                ItemCode = i.ItemCode,
-                PartNo = i.PartNo,
-                Description = i.Description,
-                SectionId = i.SectionId,
-                SectionName = i.Section.Name,
-                CategoryId = i.Section.CategoryId,
-                CategoryName = i.Section.Category.Name,
-                Unit = i.Unit,
-                VouchersTotalQuantity = i.ItemVouchers
+                Item = i,
+                MonthVouchers = i.ItemVouchers
                     .Where(v => v.VoucherDate >= startOfMonth && v.VoucherDate < startOfNextMonth)
-                    .Sum(v => v.InQuantity - v.OutQuantity),
-                VouchersTotalValue = i.ItemVouchers
-                    .Where(v => v.VoucherDate >= startOfMonth && v.VoucherDate < startOfNextMonth)
-                    .Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice)
+                    .ToList()
             })
             .ToListAsync(cancellationToken);
 
@@ -171,15 +162,111 @@ public class ItemService : IItemService
             }, "No items with vouchers found for the specified month and year.");
         }
 
+        var results = itemsWithVouchers.Select(x => new GetItemsWithVouchersOfMonthResult
+        {
+            Id = x.Item.Id,
+            ItemCode = x.Item.ItemCode,
+            PartNo = x.Item.PartNo,
+            Description = x.Item.Description,
+            SectionId = x.Item.SectionId,
+            SectionName = x.Item.Section.Name,
+            CategoryId = x.Item.Section.CategoryId,
+            CategoryName = x.Item.Section.Category.Name,
+            Unit = x.Item.Unit,
+            VouchersTotalInQuantity = x.MonthVouchers.Sum(v => v.InQuantity),
+            VouchersTotalOutQuantity = x.MonthVouchers.Sum(v => v.OutQuantity),
+            VouchersTotalQuantity = x.MonthVouchers.Sum(v => v.InQuantity - v.OutQuantity),
+            VouchersTotalInValue = x.MonthVouchers.Sum(v => v.InQuantity * v.UnitPrice),
+            VouchersTotalOutValue = x.MonthVouchers.Sum(v => v.OutQuantity * v.UnitPrice),
+            VouchersTotalValue = x.MonthVouchers.Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice)
+        })
+        .OrderBy(i => i.SectionId)
+            .ThenBy(i => i.ItemCode)
+                .ThenBy(i => i.Id)
+        .ToList();
+
         var response = new GetItemsWithVouchersOfMonthResponse
         {
-            Items = itemsWithVouchers,
-            TotalCount = itemsWithVouchers.Count
+            Items = results,
+            TotalCount = results.Count
         };
 
         _logger.LogInformation("Retrieved {ItemCount} items with vouchers for month: {Month}, year: {Year}",
-            itemsWithVouchers.Count, request.Month, request.Year);
+            results.Count, request.Month, request.Year);
         return _responseHandler.Success(response, "Items with vouchers retrieved successfully.");
+    }
+
+    public async Task<Response<SearchItemsResponse>> SearchItemsAsync(
+        Guid userId,
+        SearchItemsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Searching items with term: {SearchTerm}", request.SearchTerm);
+
+        var query = _context.Items
+            .AsNoTracking()
+            .Where(i => i.Section.Category.Warehouse.UserId == userId);
+
+        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+        {
+            var searchTerm = $"%{request.SearchTerm.Trim()}%";
+            query = query.Where(i =>
+                (i.ItemCode != null && EF.Functions.Like(i.ItemCode, searchTerm)) ||
+                (i.PartNo != null && EF.Functions.Like(i.PartNo, searchTerm)) ||
+                (i.Description != null && EF.Functions.Like(i.Description, searchTerm)));
+        }
+
+        var items = await query
+            .OrderBy(i => i.ItemCode)
+                .ThenBy(i => i.Id)
+            .Select(i => new
+            {
+                Item = i,
+                SectionName = i.Section.Name,
+                CategoryId = i.Section.CategoryId,
+                CategoryName = i.Section.Category.Name,
+                NetQuantity = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => v.InQuantity - v.OutQuantity) : 0,
+                NetValue = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice) : 0m
+            })
+            .ToListAsync(cancellationToken);
+
+        if (items.Count == 0)
+        {
+            _logger.LogInformation("No items found with search term: {SearchTerm}", request.SearchTerm);
+            return _responseHandler.Success(new SearchItemsResponse
+            {
+                Items = new List<SearchItemsResult>(),
+                TotalCount = 0
+            }, "No items found matching the search criteria.");
+        }
+
+        var itemResults = items.Select(x => new SearchItemsResult
+        {
+            Id = x.Item.Id,
+            ItemCode = x.Item.ItemCode,
+            PartNo = x.Item.PartNo,
+            Description = x.Item.Description,
+            SectionId = x.Item.SectionId,
+            SectionName = x.SectionName,
+            CategoryId = x.CategoryId,
+            CategoryName = x.CategoryName,
+            OpeningQuantity = x.Item.OpeningQuantity,
+            OpeningUnitPrice = x.Item.OpeningUnitPrice,
+            OpeningDate = x.Item.OpeningDate,
+            AvailableQuantity = x.Item.OpeningQuantity + x.NetQuantity,
+            AvailableValue = (x.Item.OpeningUnitPrice * x.Item.OpeningQuantity) + x.NetValue,
+            CreatedAt = x.Item.CreatedAt
+        }).ToList();
+
+        var response = new SearchItemsResponse
+        {
+            Items = itemResults,
+            TotalCount = itemResults.Count
+        };
+
+        _logger.LogInformation("Found {ItemCount} items matching search term: {SearchTerm}",
+            itemResults.Count, request.SearchTerm);
+        return _responseHandler.Success(response, "Items retrieved successfully.");
     }
 
     public async Task<Response<CreateItemResponse>> CreateItemAsync(

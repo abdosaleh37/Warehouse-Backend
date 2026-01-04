@@ -7,6 +7,7 @@ using Warehouse.Entities.DTO.Items.Delete;
 using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
 using Warehouse.Entities.DTO.Items.GetItemsWithVouchersOfMonth;
+using Warehouse.Entities.DTO.Items.Search;
 using Warehouse.Entities.DTO.Items.Update;
 using Warehouse.Entities.Shared.ResponseHandling;
 
@@ -23,6 +24,7 @@ public class ItemsController : ControllerBase
     private readonly IValidator<GetItemsOfSectionRequest> _getItemsOfSectionValidator;
     private readonly IValidator<GetItemByIdRequest> _getByIdValidator;
     private readonly IValidator<GetItemsWithVouchersOfMonthRequest> _getItemsWithVouchersOfMonthValidator;
+    private readonly IValidator<SearchItemsRequest> _searchItemsValidator;
     private readonly IValidator<CreateItemRequest> _createItemValidator;
     private readonly IValidator<UpdateItemRequest> _updateItemValidator;
     private readonly IValidator<DeleteItemRequest> _deleteItemValidator;
@@ -34,6 +36,7 @@ public class ItemsController : ControllerBase
         IValidator<GetItemsOfSectionRequest> getItemsOfSectionValidator,
         IValidator<GetItemByIdRequest> getByIdValidator,
         IValidator<GetItemsWithVouchersOfMonthRequest> getItemsWithVouchersOfMonthValidator,
+        IValidator<SearchItemsRequest> searchItemsValidator,
         IValidator<CreateItemRequest> createItemValidator,
         IValidator<UpdateItemRequest> updateItemValidator,
         IValidator<DeleteItemRequest> deleteItemValidator)
@@ -44,6 +47,7 @@ public class ItemsController : ControllerBase
         _getItemsOfSectionValidator = getItemsOfSectionValidator;
         _getByIdValidator = getByIdValidator;
         _getItemsWithVouchersOfMonthValidator = getItemsWithVouchersOfMonthValidator;
+        _searchItemsValidator = searchItemsValidator;
         _createItemValidator = createItemValidator;
         _updateItemValidator = updateItemValidator;
         _deleteItemValidator = deleteItemValidator;
@@ -120,6 +124,30 @@ public class ItemsController : ControllerBase
                 _responseHandler.BadRequest<object>(errors));
         }
         var response = await _itemService.GetItemsWithVouchersOfMonthAsync(userId, request, cancellationToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpGet("search")]
+    public async Task<ActionResult<Response<SearchItemsResponse>>> SearchItems(
+        [FromQuery] SearchItemsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
+        var validationResult = await _searchItemsValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = validationResult.Errors.FlattenErrors();
+            _logger.LogWarning("Invalid search items request: {Errors}", errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+
+        var response = await _itemService.SearchItemsAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 
