@@ -139,8 +139,10 @@ All endpoints except authentication require a valid JWT token in the `Authorizat
 ### Items
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/Items` | Get all items |
+| GET | `/api/Items/section/{id}` | Get items by section ID |
 | GET | `/api/Items/{id}` | Get item by ID |
+| GET | `/api/Items/vouchers/{year}/{month}` | Get items with vouchers for a specific month |
+| GET | `/api/Items/search?searchTerm={term}` | Search items by name or barcode |
 | POST | `/api/Items` | Create new item |
 | PUT | `/api/Items/{id}` | Update item |
 | DELETE | `/api/Items/{id}` | Delete item |
