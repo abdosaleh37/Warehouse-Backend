@@ -50,7 +50,8 @@ public class ItemService : IItemService
         var items = await _context.Items
             .AsNoTracking()
             .Where(i => i.SectionId == request.SectionId)
-            .OrderBy(i => i.CreatedAt)
+            .OrderBy(i => i.ItemCode)
+                .ThenBy(i => i.Id)
             .Select(i => new
             {
                 Item = i,
@@ -141,23 +142,12 @@ public class ItemService : IItemService
             .AsNoTracking()
             .Where(i => i.Section.Category.Warehouse.UserId == userId &&
                         i.ItemVouchers.Any(v => v.VoucherDate >= startOfMonth && v.VoucherDate < startOfNextMonth))
-            .Select(i => new GetItemsWithVouchersOfMonthResult
+            .Select(i => new
             {
-                Id = i.Id,
-                ItemCode = i.ItemCode,
-                PartNo = i.PartNo,
-                Description = i.Description,
-                SectionId = i.SectionId,
-                SectionName = i.Section.Name,
-                CategoryId = i.Section.CategoryId,
-                CategoryName = i.Section.Category.Name,
-                Unit = i.Unit,
-                VouchersTotalQuantity = i.ItemVouchers
+                Item = i,
+                MonthVouchers = i.ItemVouchers
                     .Where(v => v.VoucherDate >= startOfMonth && v.VoucherDate < startOfNextMonth)
-                    .Sum(v => v.InQuantity - v.OutQuantity),
-                VouchersTotalValue = i.ItemVouchers
-                    .Where(v => v.VoucherDate >= startOfMonth && v.VoucherDate < startOfNextMonth)
-                    .Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice)
+                    .ToList()
             })
             .ToListAsync(cancellationToken);
 
@@ -171,14 +161,37 @@ public class ItemService : IItemService
             }, "No items with vouchers found for the specified month and year.");
         }
 
+        var results = itemsWithVouchers.Select(x => new GetItemsWithVouchersOfMonthResult
+        {
+            Id = x.Item.Id,
+            ItemCode = x.Item.ItemCode,
+            PartNo = x.Item.PartNo,
+            Description = x.Item.Description,
+            SectionId = x.Item.SectionId,
+            SectionName = x.Item.Section.Name,
+            CategoryId = x.Item.Section.CategoryId,
+            CategoryName = x.Item.Section.Category.Name,
+            Unit = x.Item.Unit,
+            VouchersTotalInQuantity = x.MonthVouchers.Sum(v => v.InQuantity),
+            VouchersTotalOutQuantity = x.MonthVouchers.Sum(v => v.OutQuantity),
+            VouchersTotalQuantity = x.MonthVouchers.Sum(v => v.InQuantity - v.OutQuantity),
+            VouchersTotalInValue = x.MonthVouchers.Sum(v => v.InQuantity * v.UnitPrice),
+            VouchersTotalOutValue = x.MonthVouchers.Sum(v => v.OutQuantity * v.UnitPrice),
+            VouchersTotalValue = x.MonthVouchers.Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice)
+        })
+        .OrderBy(i => i.SectionId)
+            .ThenBy(i => i.ItemCode)
+                .ThenBy(i => i.Id)
+        .ToList();
+
         var response = new GetItemsWithVouchersOfMonthResponse
         {
-            Items = itemsWithVouchers,
-            TotalCount = itemsWithVouchers.Count
+            Items = results,
+            TotalCount = results.Count
         };
 
         _logger.LogInformation("Retrieved {ItemCount} items with vouchers for month: {Month}, year: {Year}",
-            itemsWithVouchers.Count, request.Month, request.Year);
+            results.Count, request.Month, request.Year);
         return _responseHandler.Success(response, "Items with vouchers retrieved successfully.");
     }
 

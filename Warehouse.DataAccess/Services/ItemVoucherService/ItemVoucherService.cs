@@ -180,6 +180,10 @@ public class ItemVoucherService : IItemVoucherService
                 TotalCount = 0,
                 ItemId = item.Id,
                 ItemDescription = item.Description,
+                TotalInQuantity = 0,
+                TotalInValue = 0m,
+                TotalOutQuantity = 0,
+                TotalOutValue = 0m,
                 PreMonthItemAvailableQuantity = item.OpeningQuantity + preMonthNetQuantity,
                 PreMonthItemAvailableValue = (item.OpeningUnitPrice * item.OpeningQuantity) + preMonthNetValue,
                 PostMonthItemAvailableQuantity = item.OpeningQuantity + preMonthNetQuantity,
@@ -189,8 +193,14 @@ public class ItemVoucherService : IItemVoucherService
 
         var voucherResults = _mapper.Map<List<GetMonthlyVouchersOfItemResult>>(vouchersInMonth);
 
+        // Calculate running totals and aggregate totals
         int runningQuantity = item.OpeningQuantity + preMonthNetQuantity;
         decimal runningValue = (item.OpeningUnitPrice * item.OpeningQuantity) + preMonthNetValue;
+
+        int totalInQuantity = 0;
+        decimal totalInValue = 0m;
+        int totalOutQuantity = 0;
+        decimal totalOutValue = 0m;
 
         for (int i = 0; i < voucherResults.Count; i++)
         {
@@ -205,6 +215,12 @@ public class ItemVoucherService : IItemVoucherService
 
             dto.AmountAfterVoucher = runningQuantity;
             dto.ValueAfterVoucher = runningValue;
+
+            // Accumulate totals
+            totalInQuantity += entity.InQuantity;
+            totalInValue += entity.InQuantity * entity.UnitPrice;
+            totalOutQuantity += entity.OutQuantity;
+            totalOutValue += entity.OutQuantity * entity.UnitPrice;
         }
 
         var response = new GetMonthlyVouchersOfItemResponse
@@ -213,13 +229,18 @@ public class ItemVoucherService : IItemVoucherService
             TotalCount = voucherResults.Count,
             ItemId = item.Id,
             ItemDescription = item.Description,
+            TotalInQuantity = totalInQuantity,
+            TotalInValue = totalInValue,
+            TotalOutQuantity = totalOutQuantity,
+            TotalOutValue = totalOutValue,
             PreMonthItemAvailableQuantity = item.OpeningQuantity + preMonthNetQuantity,
             PreMonthItemAvailableValue = (item.OpeningUnitPrice * item.OpeningQuantity) + preMonthNetValue,
             PostMonthItemAvailableQuantity = runningQuantity,
             PostMonthItemAvailableValue = runningValue
         };
 
-        _logger.LogInformation("Retrieved {VoucherCount} vouchers for item {ItemId} in month {Month}/{Year}", voucherResults.Count, request.ItemId, request.Month, request.Year);
+        _logger.LogInformation("Retrieved {VoucherCount} vouchers for item {ItemId} in month {Month}/{Year} (In: {TotalIn}, Out: {TotalOut})", 
+            voucherResults.Count, request.ItemId, request.Month, request.Year, totalInQuantity, totalOutQuantity);
         return _responseHandler.Success(response, "Vouchers retrieved successfully.");
     }
 

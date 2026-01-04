@@ -8,6 +8,12 @@
         public Guid ItemId { get; set; }
         public string ItemDescription { get; set; } = string.Empty;
 
+        public int TotalInQuantity { get; set; }
+        public decimal TotalInValue { get; set; }
+
+        public int TotalOutQuantity { get; set; }
+        public decimal TotalOutValue { get; set; }
+
         public int PreMonthItemAvailableQuantity { get; set; }
         public decimal PreMonthItemAvailableValue { get; set; }
         public int PostMonthItemAvailableQuantity { get; set; }

@@ -16,7 +16,13 @@ namespace Warehouse.Entities.DTO.Items.GetItemsWithVouchersOfMonth
         public string CategoryName { get; set; } = string.Empty;
 
         public UnitOfMeasure Unit { get; set; }
+
+        public int VouchersTotalInQuantity { get; set; }
+        public int VouchersTotalOutQuantity { get; set; }
         public int VouchersTotalQuantity { get; set; }
+
+        public decimal VouchersTotalInValue { get; set; }
+        public decimal VouchersTotalOutValue { get; set; }
         public decimal VouchersTotalValue { get; set; }
     }
 }
