@@ -140,6 +140,8 @@ public class ItemService : IItemService
         var startOfNextMonth = startOfMonth.AddMonths(1);
 
         var itemsWithVouchers = await _context.Items
+            .Include(i => i.Section)
+                .ThenInclude(s => s.Category)
             .AsNoTracking()
             .Where(i => i.Section.Category.Warehouse.UserId == userId &&
                         i.ItemVouchers.Any(v => v.VoucherDate >= startOfMonth && v.VoucherDate < startOfNextMonth))
