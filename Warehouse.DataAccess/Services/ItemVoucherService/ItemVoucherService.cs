@@ -66,7 +66,11 @@ public class ItemVoucherService : IItemVoucherService
                 ItemId = item.Id,
                 ItemDescription = item.Description,
                 ItemAvailableQuantity = item.OpeningQuantity,
-                ItemAvailableValue = item.OpeningUnitPrice * item.OpeningQuantity
+                ItemAvailableValue = item.OpeningUnitPrice * item.OpeningQuantity,
+                TotalInQuantity = 0,
+                TotalInValue = 0m,
+                TotalOutQuantity = 0,
+                TotalOutValue = 0m
             }, "No vouchers found.");
         }
 
@@ -74,6 +78,11 @@ public class ItemVoucherService : IItemVoucherService
 
         int runningQuantity = item.OpeningQuantity;
         decimal runningValue = item.OpeningUnitPrice * item.OpeningQuantity;
+
+        int totalInQuantity = 0;
+        decimal totalInValue = 0m;
+        int totalOutQuantity = 0;
+        decimal totalOutValue = 0m;
 
         for (int i = 0; i < voucherResults.Count; i++)
         {
@@ -86,6 +95,12 @@ public class ItemVoucherService : IItemVoucherService
             runningQuantity += netQuantity;
             runningValue += netValue;
 
+            // Accumulate totals
+            totalInQuantity += entity.InQuantity;
+            totalInValue += entity.InQuantity * entity.UnitPrice;
+            totalOutQuantity += entity.OutQuantity;
+            totalOutValue += entity.OutQuantity * entity.UnitPrice;
+
             dto.AmountAfterVoucher = runningQuantity;
             dto.ValueAfterVoucher = runningValue;
         }
@@ -97,7 +112,11 @@ public class ItemVoucherService : IItemVoucherService
             ItemId = item.Id,
             ItemDescription = item.Description,
             ItemAvailableQuantity = runningQuantity,
-            ItemAvailableValue = runningValue
+            ItemAvailableValue = runningValue,
+            TotalInQuantity = totalInQuantity,
+            TotalInValue = totalInValue,
+            TotalOutQuantity = totalOutQuantity,
+            TotalOutValue = totalOutValue
         };
 
         _logger.LogInformation("Retrieved {VoucherCount} vouchers for item {ItemId}", voucherResults.Count, request.ItemId);
