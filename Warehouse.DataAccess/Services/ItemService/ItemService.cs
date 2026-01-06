@@ -218,9 +218,13 @@ public class ItemService : IItemService
                 (i.Description != null && EF.Functions.Like(i.Description, searchTerm)));
         }
 
+        var totalCount = await query.CountAsync(cancellationToken);
+
         var items = await query
             .OrderBy(i => i.ItemCode)
-                .ThenBy(i => i.Id)
+                .ThenBy(i => i.Section.CreatedAt)
+            .Skip((request.PageNumber - 1) * request.PageSize)
+            .Take(request.PageSize)
             .Select(i => new
             {
                 Item = i,
@@ -238,7 +242,11 @@ public class ItemService : IItemService
             return _responseHandler.Success(new SearchItemsResponse
             {
                 Items = new List<SearchItemsResult>(),
-                TotalCount = 0
+                TotalCount = 0,
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize,
+                HasNextPage = false,
+                HasPreviousPage = false
             }, "No items found matching the search criteria.");
         }
 
@@ -263,7 +271,11 @@ public class ItemService : IItemService
         var response = new SearchItemsResponse
         {
             Items = itemResults,
-            TotalCount = itemResults.Count
+            TotalCount = totalCount,
+            PageNumber = request.PageNumber,
+            PageSize = request.PageSize,
+            HasNextPage = (request.PageNumber * request.PageSize) < totalCount,
+            HasPreviousPage = request.PageNumber > 1
         };
 
         _logger.LogInformation("Found {ItemCount} items matching search term: {SearchTerm}",
