@@ -1,4 +1,6 @@
-﻿namespace Warehouse.Entities.DTO.Items.GetItemsOfSection
+﻿using Warehouse.Entities.Utilities.Enums;
+
+namespace Warehouse.Entities.DTO.Items.GetItemsOfSection
 {
     public class GetItemsOfSectionResult
     {
@@ -6,6 +8,7 @@
         public string ItemCode { get; set; } = string.Empty;
         public string? PartNo { get; set; }
         public string Description { get; set; } = string.Empty;
+        public UnitOfMeasure Unit { get; set; }
         public int OpeningQuantity { get; set; }
         public decimal OpeningUnitPrice { get; set; }
         public DateTime OpeningDate { get; set; }
