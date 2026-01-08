@@ -256,6 +256,7 @@ public class ItemService : IItemService
             ItemCode = x.Item.ItemCode,
             PartNo = x.Item.PartNo,
             Description = x.Item.Description,
+            UnitOfMeasure = x.Item.Unit,
             SectionId = x.Item.SectionId,
             SectionName = x.SectionName,
             CategoryId = x.CategoryId,
