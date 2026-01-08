@@ -66,7 +66,8 @@ namespace Warehouse.DataAccess.Services.CategoryService
                     Categories = new List<GetAllCategoriesResult>(),
                     TotalCount = 0,
                     WarehouseId = warehouse.Id,
-                    WarehouseName = warehouse.Name
+                    WarehouseName = warehouse.Name,
+                    WarehouseCreateAt = warehouse.CreatedAt
                 }, "No categories found.");
             }
 
@@ -82,7 +83,8 @@ namespace Warehouse.DataAccess.Services.CategoryService
                 Categories = categoriesResult,
                 TotalCount = categoriesResult.Count,
                 WarehouseId = warehouse.Id,
-                WarehouseName = warehouse.Name
+                WarehouseName = warehouse.Name,
+                WarehouseCreateAt = warehouse.CreatedAt
             };
 
             _logger.LogInformation("Categories retreived successfully.");

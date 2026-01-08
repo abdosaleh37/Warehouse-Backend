@@ -17,6 +17,10 @@ public class WarehouseConfiguration : IEntityTypeConfiguration<Entities.Entities
             .IsRequired()
             .HasMaxLength(200);
 
+        builder.Property(w => w.CreatedAt)
+            .IsRequired()
+            .HasDefaultValueSql("GETUTCDATE()");
+
         builder.Property(w => w.UserId)
             .IsRequired();
 
