@@ -49,6 +49,7 @@ public class ItemMapping : IRegister
             .Map(dest => dest.ItemCode, src => src.ItemCode)
             .Map(dest => dest.PartNo, src => src.PartNo)
             .Map(dest => dest.Description, src => src.Description)
+            .Map(dest => dest.Unit, src => src.Unit)
             .Map(dest => dest.OpeningQuantity, src => src.OpeningQuantity)
             .Map(dest => dest.OpeningUnitPrice, src => src.OpeningUnitPrice)
             .Map(dest => dest.OpeningDate, src => src.OpeningDate)
