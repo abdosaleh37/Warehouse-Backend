@@ -1,4 +1,4 @@
-using MapsterMapper;
+﻿using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Warehouse.DataAccess.ApplicationDbContext;
@@ -76,6 +76,12 @@ public class ItemVoucherService : IItemVoucherService
 
         var voucherResults = _mapper.Map<List<GetVouchersOfItemResult>>(vouchers);
 
+        // Ensure VoucherDate is returned as UTC
+        foreach (var dto in voucherResults)
+        {
+            dto.VoucherDate = DateTime.SpecifyKind(dto.VoucherDate, DateTimeKind.Utc);
+        }
+
         int runningQuantity = item.OpeningQuantity;
         decimal runningValue = item.OpeningUnitPrice * item.OpeningQuantity;
 
@@ -147,6 +153,7 @@ public class ItemVoucherService : IItemVoucherService
 
         var response = _mapper.Map<GetVoucherByIdResponse>(voucher.Voucher);
         response.ItemDescription = voucher.ItemDescription ?? string.Empty;
+        response.VoucherDate = DateTime.SpecifyKind(response.VoucherDate, DateTimeKind.Utc);
 
         _logger.LogInformation("Retrieved voucher {VoucherId} for user {UserId}", request.Id, userId);
         return _responseHandler.Success(response, "Voucher retrieved successfully.");
@@ -211,6 +218,12 @@ public class ItemVoucherService : IItemVoucherService
         }
 
         var voucherResults = _mapper.Map<List<GetMonthlyVouchersOfItemResult>>(vouchersInMonth);
+
+        // Ensure VoucherDate is returned as UTC
+        foreach (var dto in voucherResults)
+        {
+            dto.VoucherDate = DateTime.SpecifyKind(dto.VoucherDate, DateTimeKind.Utc);
+        }
 
         // Calculate running totals and aggregate totals
         int runningQuantity = item.OpeningQuantity + preMonthNetQuantity;
@@ -309,6 +322,7 @@ public class ItemVoucherService : IItemVoucherService
         }
 
         var response = _mapper.Map<CreateVoucherResponse>(voucherEntity);
+        response.VoucherDate = DateTime.SpecifyKind(response.VoucherDate, DateTimeKind.Utc);
 
         _logger.LogInformation("Created voucher {VoucherId} for item {ItemId} by user {UserId}", voucherEntity.Id, request.ItemId, userId);
         return _responseHandler.Success(response, "Voucher created successfully.");
@@ -369,6 +383,7 @@ public class ItemVoucherService : IItemVoucherService
         }
 
         var response = _mapper.Map<UpdateVoucherResponse>(voucherEntity);
+        response.VoucherDate = DateTime.SpecifyKind(response.VoucherDate, DateTimeKind.Utc);
 
         _logger.LogInformation("Updated voucher {VoucherId} by user {UserId}", request.Id, userId);
         return _responseHandler.Success(response, "Voucher updated successfully.");

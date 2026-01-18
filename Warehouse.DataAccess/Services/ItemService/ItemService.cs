@@ -1,4 +1,4 @@
-using MapsterMapper;
+﻿using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Warehouse.DataAccess.ApplicationDbContext;
@@ -79,6 +79,8 @@ public class ItemService : IItemService
             var mapped = _mapper.Map<GetItemsOfSectionResult>(x.Item);
             mapped.AvailableQuantity = x.Item.OpeningQuantity + x.NetQuantity;
             mapped.AvailableValue = (x.Item.OpeningUnitPrice * x.Item.OpeningQuantity) + x.NetValue;
+            mapped.OpeningDate = DateTime.SpecifyKind(x.Item.OpeningDate, DateTimeKind.Utc);
+            mapped.CreatedAt = DateTime.SpecifyKind(x.Item.CreatedAt, DateTimeKind.Utc);
             return mapped;
         }).ToList();
 
@@ -124,6 +126,8 @@ public class ItemService : IItemService
         response.SectionName = itemResult.SectionName;
         response.AvailableQuantity = itemResult.Item.OpeningQuantity + itemResult.NetQuantity;
         response.AvailableValue = (itemResult.Item.OpeningUnitPrice * itemResult.Item.OpeningQuantity) + itemResult.NetValue;
+        response.OpeningDate = DateTime.SpecifyKind(itemResult.Item.OpeningDate, DateTimeKind.Utc);
+        response.CreatedAt = DateTime.SpecifyKind(itemResult.Item.CreatedAt, DateTimeKind.Utc);
 
         _logger.LogInformation("Item with Id: {ItemId} retrieved successfully.", request.Id);
         return _responseHandler.Success(response, "Item retrieved successfully.");
@@ -263,10 +267,10 @@ public class ItemService : IItemService
             CategoryName = x.CategoryName,
             OpeningQuantity = x.Item.OpeningQuantity,
             OpeningUnitPrice = x.Item.OpeningUnitPrice,
-            OpeningDate = x.Item.OpeningDate,
+            OpeningDate = DateTime.SpecifyKind(x.Item.OpeningDate, DateTimeKind.Utc),
             AvailableQuantity = x.Item.OpeningQuantity + x.NetQuantity,
             AvailableValue = (x.Item.OpeningUnitPrice * x.Item.OpeningQuantity) + x.NetValue,
-            CreatedAt = x.Item.CreatedAt
+            CreatedAt = DateTime.SpecifyKind(x.Item.CreatedAt, DateTimeKind.Utc)
         }).ToList();
 
         var response = new SearchItemsResponse

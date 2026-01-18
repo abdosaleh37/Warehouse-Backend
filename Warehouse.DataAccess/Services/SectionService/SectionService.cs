@@ -1,4 +1,4 @@
-using MapsterMapper;
+﻿using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Warehouse.DataAccess.ApplicationDbContext;
@@ -126,6 +126,7 @@ public class SectionService : ISectionService
         {
             var mapped = _mapper.Map<GetSectionsOfCategoryResult>(x.Section);
             mapped.ItemCount = x.ItemCount;
+            mapped.CreatedAt = DateTime.SpecifyKind(mapped.CreatedAt, DateTimeKind.Utc);
             return mapped;
         }).ToList();
 
@@ -169,6 +170,7 @@ public class SectionService : ISectionService
         var response = _mapper.Map<GetSectionByIdResponse>(sectionResult.Section);
         response.CategoryName = sectionResult.CategoryName;
         response.ItemCount = sectionResult.ItemCount;
+        response.CreatedAt = DateTime.SpecifyKind(response.CreatedAt, DateTimeKind.Utc);
 
         _logger.LogInformation("Section with Id: {SectionId} retrieved successfully", request.Id);
         return _responseHandler.Success(response, "Section retrieved successfully");
@@ -212,6 +214,7 @@ public class SectionService : ISectionService
         }
 
         var response = _mapper.Map<CreateSectionResponse>(section);
+        response.CreatedAt = DateTime.SpecifyKind(response.CreatedAt, DateTimeKind.Utc);
 
         _logger.LogInformation("Section created successfully with Id: {SectionId}", section.Id);
         return _responseHandler.Success(response, "Section created successfully");

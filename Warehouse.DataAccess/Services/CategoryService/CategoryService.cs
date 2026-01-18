@@ -67,7 +67,7 @@ namespace Warehouse.DataAccess.Services.CategoryService
                     TotalCount = 0,
                     WarehouseId = warehouse.Id,
                     WarehouseName = warehouse.Name,
-                    WarehouseCreateAt = warehouse.CreatedAt
+                    WarehouseCreatedAt = DateTime.SpecifyKind(warehouse.CreatedAt, DateTimeKind.Utc)
                 }, "No categories found.");
             }
 
@@ -75,6 +75,7 @@ namespace Warehouse.DataAccess.Services.CategoryService
             {
                 var mapped = _mapper.Map<GetAllCategoriesResult>(x.Category);
                 mapped.SectionCount = x.SectionCount;
+                mapped.CreatedAt = DateTime.SpecifyKind(mapped.CreatedAt, DateTimeKind.Utc);
                 return mapped;
             }).ToList();
 
@@ -84,7 +85,7 @@ namespace Warehouse.DataAccess.Services.CategoryService
                 TotalCount = categoriesResult.Count,
                 WarehouseId = warehouse.Id,
                 WarehouseName = warehouse.Name,
-                WarehouseCreateAt = warehouse.CreatedAt
+                WarehouseCreatedAt = DateTime.SpecifyKind(warehouse.CreatedAt, DateTimeKind.Utc)
             };
 
             _logger.LogInformation("Categories retreived successfully.");
@@ -118,6 +119,7 @@ namespace Warehouse.DataAccess.Services.CategoryService
             var mapped = _mapper.Map<GetCategoryByIdResponse>(categoryResult.Category);
             mapped.SectionCount = categoryResult.SectionCount;
             mapped.WarehouseId = categoryResult.Category.WarehouseId;
+            mapped.CreatedAt = DateTime.SpecifyKind(mapped.CreatedAt, DateTimeKind.Utc);
 
             if (categoryResult.Warehouse != null)
             {
@@ -166,6 +168,7 @@ namespace Warehouse.DataAccess.Services.CategoryService
             }
 
             var response = _mapper.Map<CreateCategoryResponse>(categoryEntity);
+            response.CreatedAt = DateTime.SpecifyKind(response.CreatedAt, DateTimeKind.Utc);
 
             _logger.LogInformation("Category created successfully with name: {CategoryName}", request.Name);
             return _responseHandler.Success(response, "Category created successfully.");
@@ -201,6 +204,7 @@ namespace Warehouse.DataAccess.Services.CategoryService
             }
 
             var response = _mapper.Map<UpdateCategoryResponse>(category);
+            response.CreatedAt = DateTime.SpecifyKind(response.CreatedAt, DateTimeKind.Utc);
 
             _logger.LogInformation("Category updated successfully with name: {CategoryName}", request.Name);
             return _responseHandler.Success(response, "Category updated successfully.");
