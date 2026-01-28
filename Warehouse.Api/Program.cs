@@ -1,4 +1,4 @@
-using Serilog;
+﻿using Serilog;
 using Warehouse.Api.Extensions;
 using Warehouse.DataAccess.Extensions;
 
@@ -62,6 +62,9 @@ public class Program
             app.UseAuthorization();
 
             app.MapControllers();
+
+            app.UseStaticFiles();
+
             app.MapHealthChecks("/health");
 
             Log.Information("Warehouse API started successfully");

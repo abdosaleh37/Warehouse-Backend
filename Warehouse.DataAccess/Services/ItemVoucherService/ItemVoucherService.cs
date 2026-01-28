@@ -53,7 +53,7 @@ public class ItemVoucherService : IItemVoucherService
             .AsNoTracking()
             .Where(iv => iv.ItemId == request.ItemId)
             .OrderBy(iv => iv.VoucherDate)
-                .ThenBy(iv => iv.Id)
+                .ThenBy(iv => iv.VoucherCode)
             .ToListAsync(cancellationToken);
 
         if (vouchers.Count == 0)
@@ -194,7 +194,7 @@ public class ItemVoucherService : IItemVoucherService
             .AsNoTracking()
             .Where(iv => iv.ItemId == request.ItemId && iv.VoucherDate >= startOfMonth && iv.VoucherDate < startOfNextMonth)
             .OrderBy(iv => iv.VoucherDate)
-                .ThenBy(iv => iv.Id)
+                .ThenBy(iv => iv.VoucherCode)
             .ToListAsync(cancellationToken);
 
         if (vouchersInMonth.Count == 0)

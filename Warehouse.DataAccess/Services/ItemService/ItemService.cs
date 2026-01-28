@@ -51,8 +51,9 @@ public class ItemService : IItemService
         var items = await _context.Items
             .AsNoTracking()
             .Where(i => i.SectionId == request.SectionId)
-            .OrderBy(i => i.ItemCode)
-                .ThenBy(i => i.Id)
+            .OrderBy(i => i.ItemCode.Length)
+                .ThenBy(i => i.ItemCode)
+                    .ThenBy(i => i.CreatedAt)
             .Select(i => new
             {
                 Item = i,
@@ -187,8 +188,8 @@ public class ItemService : IItemService
             VouchersTotalValue = x.MonthVouchers.Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice)
         })
         .OrderBy(i => i.SectionId)
-            .ThenBy(i => i.ItemCode)
-                .ThenBy(i => i.Id)
+            .ThenBy(i => i.ItemCode.Length)
+                .ThenBy(i => i.ItemCode)
         .ToList();
 
         var response = new GetItemsWithVouchersOfMonthResponse
@@ -225,8 +226,9 @@ public class ItemService : IItemService
         var totalCount = await query.CountAsync(cancellationToken);
 
         var items = await query
-            .OrderBy(i => i.ItemCode)
-                .ThenBy(i => i.Section.CreatedAt)
+            .OrderBy(i => i.Section.CreatedAt)
+                .ThenBy(i => i.ItemCode.Length)
+                    .ThenBy(i => i.ItemCode)
             .Skip((request.PageNumber - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(i => new

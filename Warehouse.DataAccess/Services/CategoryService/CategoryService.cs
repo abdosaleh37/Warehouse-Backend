@@ -88,8 +88,8 @@ namespace Warehouse.DataAccess.Services.CategoryService
                 WarehouseCreatedAt = DateTime.SpecifyKind(warehouse.CreatedAt, DateTimeKind.Utc)
             };
 
-            _logger.LogInformation("Categories retreived successfully.");
-            return _responseHandler.Success(response, "Categories retreived successfully.");
+            _logger.LogInformation("Categories retrieved successfully.");
+            return _responseHandler.Success(response, "Categories retrieved successfully.");
         }
 
         public async Task<Response<GetCategoryByIdResponse>> GetByIdAsync(
@@ -126,8 +126,8 @@ namespace Warehouse.DataAccess.Services.CategoryService
                 mapped.WarehouseName = categoryResult.Warehouse.Name;
             }
 
-            _logger.LogInformation("Category: {CategoryId} information retreived successfully.", categoryResult.Category.Id);
-            return _responseHandler.Success(mapped, "Category retreived successfully.");
+            _logger.LogInformation("Category: {CategoryId} retrieved successfully.", categoryResult.Category.Id);
+            return _responseHandler.Success(mapped, "Category retrieved successfully.");
         }
 
         public async Task<Response<CreateCategoryResponse>> CreateCategoryAsync(
