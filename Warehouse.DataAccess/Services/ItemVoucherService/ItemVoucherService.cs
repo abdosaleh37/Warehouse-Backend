@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.Entities.DTO.ItemVoucher.Create;
+using Warehouse.Entities.DTO.ItemVoucher.CreateWithManyItems;
 using Warehouse.Entities.DTO.ItemVoucher.Delete;
 using Warehouse.Entities.DTO.ItemVoucher.GetById;
 using Warehouse.Entities.DTO.ItemVoucher.GetMonthlyVouchersOfItem;
@@ -10,6 +11,7 @@ using Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem;
 using Warehouse.Entities.DTO.ItemVoucher.Update;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
+using System.Data;
 
 namespace Warehouse.DataAccess.Services.ItemVoucherService;
 
@@ -212,19 +214,25 @@ public class ItemVoucherService : IItemVoucherService
             var startOfMonth = new DateTime(request.Year, request.Month, 1);
             var startOfNextMonth = startOfMonth.AddMonths(1);
 
-            var preMonthNetQuantity = await _context.ItemVouchers
-                .Where(iv => iv.ItemId == request.ItemId && iv.VoucherDate < startOfMonth)
-                .Select(iv => iv.InQuantity - iv.OutQuantity)
-                .SumAsync(cancellationToken);
+            var preMonthSums = await _context.ItemVouchers
+                .Where(iv => iv.ItemId == request.ItemId 
+                    && iv.VoucherDate < startOfMonth)
+                .GroupBy(iv => 1)
+                .Select(g => new
+                {
+                    NetQuantity = g.Sum(iv => iv.InQuantity - iv.OutQuantity),
+                    NetValue = g.Sum(iv => (iv.InQuantity - iv.OutQuantity) * iv.UnitPrice)
+                })
+                .FirstOrDefaultAsync(cancellationToken);
 
-            var preMonthNetValue = await _context.ItemVouchers
-                .Where(iv => iv.ItemId == request.ItemId && iv.VoucherDate < startOfMonth)
-                .Select(iv => (iv.InQuantity - iv.OutQuantity) * iv.UnitPrice)
-                .SumAsync(cancellationToken);
+            var preMonthNetQuantity = preMonthSums?.NetQuantity ?? 0;
+            var preMonthNetValue = preMonthSums?.NetValue ?? 0m;
 
             var vouchersInMonth = await _context.ItemVouchers
                 .AsNoTracking()
-                .Where(iv => iv.ItemId == request.ItemId && iv.VoucherDate >= startOfMonth && iv.VoucherDate < startOfNextMonth)
+                .Where(iv => iv.ItemId == request.ItemId 
+                    && iv.VoucherDate >= startOfMonth 
+                    && iv.VoucherDate < startOfNextMonth)
                 .OrderBy(iv => iv.VoucherDate)
                     .ThenBy(iv => iv.VoucherCode)
                 .ToListAsync(cancellationToken);
@@ -354,16 +362,41 @@ public class ItemVoucherService : IItemVoucherService
                 return _responseHandler.BadRequest<CreateVoucherResponse>("Insufficient available quantity for this voucher.");
             }
 
-            var voucherEntity = _mapper.Map<ItemVoucher>(request);
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+            try
+            {
+                var currentNetQuantityTx = await _context.ItemVouchers
+                    .Where(iv => iv.ItemId == item.Id)
+                    .Select(iv => iv.InQuantity - iv.OutQuantity)
+                    .SumAsync(cancellationToken);
 
-            await _context.ItemVouchers.AddAsync(voucherEntity, cancellationToken);
-            await _context.SaveChangesAsync(cancellationToken);
+                var projectedAvailableTx = item.OpeningQuantity + currentNetQuantityTx + newNetQuantity;
+                if (projectedAvailableTx < 0)
+                {
+                    _logger.LogWarning("Insufficient quantity for item {ItemId} when creating voucher (after recheck) by user {UserId}. Projected available: {Projected}",
+                        item.Id, userId, projectedAvailableTx);
+                    await transaction.RollbackAsync(cancellationToken);
+                    return _responseHandler.BadRequest<CreateVoucherResponse>("Insufficient available quantity for this voucher.");
+                }
 
-            var response = _mapper.Map<CreateVoucherResponse>(voucherEntity);
-            response.VoucherDate = DateTime.SpecifyKind(response.VoucherDate, DateTimeKind.Utc);
+                var voucherEntity = _mapper.Map<ItemVoucher>(request);
 
-            _logger.LogInformation("Created voucher {VoucherId} for item {ItemId} by user {UserId}", voucherEntity.Id, request.ItemId, userId);
-            return _responseHandler.Success(response, "Voucher created successfully.");
+                await _context.ItemVouchers.AddAsync(voucherEntity, cancellationToken);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                await transaction.CommitAsync(cancellationToken);
+
+                var response = _mapper.Map<CreateVoucherResponse>(voucherEntity);
+                response.VoucherDate = DateTime.SpecifyKind(response.VoucherDate, DateTimeKind.Utc);
+
+                _logger.LogInformation("Created voucher {VoucherId} for item {ItemId} by user {UserId}", voucherEntity.Id, request.ItemId, userId);
+                return _responseHandler.Success(response, "Voucher created successfully.");
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
         }
         catch (OperationCanceledException)
         {
@@ -376,6 +409,118 @@ public class ItemVoucherService : IItemVoucherService
             return _responseHandler.InternalServerError<CreateVoucherResponse>("An error occurred while creating the voucher.");
         }
     }
+
+    public async Task<Response<CreateVoucherWithManyItemsResponse>> CreateVoucherWithManyItemsAsync(
+    Guid userId,
+    CreateVoucherWithManyItemsRequest request,
+    CancellationToken cancellationToken = default)
+{
+    _logger.LogInformation("Creating vouchers for multiple items by user {UserId}", userId);
+
+    try
+    {
+        var itemIds = request.Items.Select(i => i.ItemId).Distinct().ToList();
+
+        var items = await _context.Items
+            .AsNoTracking()
+            .Where(i => itemIds.Contains(i.Id) 
+                && i.Section.Category.Warehouse.UserId == userId)
+            .ToDictionaryAsync(i => i.Id, cancellationToken);
+
+        // Ensure all requested item IDs exist and belong to the user
+        var missingItemIds = itemIds.Except(items.Keys).ToList();
+        if (missingItemIds.Any())
+        {
+            _logger.LogWarning("Some items were not found or do not belong to user {UserId}: {Missing}", 
+                userId, string.Join(',', missingItemIds));
+            return _responseHandler.NotFound<CreateVoucherWithManyItemsResponse>(
+                $"Some items were not found or do not belong to the user: {string.Join(',', missingItemIds)}");
+        }
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        try
+        {
+            // Compute current net quantities for all items inside the transaction
+            var netQuantities = await _context.ItemVouchers
+                .Where(iv => itemIds.Contains(iv.ItemId))
+                .GroupBy(iv => iv.ItemId)
+                .Select(g => new { ItemId = g.Key, Net = g.Sum(iv => iv.InQuantity - iv.OutQuantity) })
+                .ToDictionaryAsync(x => x.ItemId, x => x.Net, cancellationToken);
+
+            var vouchersToCreate = new List<ItemVoucher>();
+
+            foreach (var item in items)
+            {
+                var itemId = item.Key;
+                var itemEntity = item.Value;
+                var currentNetQuantity = netQuantities.TryGetValue(itemId, out var net) ? net : 0;
+                var itemRequests = request.Items.Where(i => i.ItemId == itemId).ToList();
+
+                foreach (var itemRequest in itemRequests)
+                {
+                    var newNetQuantity = itemRequest.InQuantity - itemRequest.OutQuantity;
+                    var projectedAvailableTx = itemEntity.OpeningQuantity + currentNetQuantity + newNetQuantity;
+
+                    if (projectedAvailableTx < 0)
+                    {
+                        _logger.LogWarning(
+                            "Insufficient quantity for item {ItemId} when creating voucher (after recheck) by user {UserId}. Projected available: {Projected}",
+                            itemId, userId, projectedAvailableTx);
+                        await transaction.RollbackAsync(cancellationToken);
+                        return _responseHandler.BadRequest<CreateVoucherWithManyItemsResponse>(
+                            $"Insufficient available quantity for item {itemId}.");
+                    }
+
+                    // Add to list of vouchers to create
+                    vouchersToCreate.Add(new ItemVoucher
+                    {
+                        VoucherCode = request.VoucherCode,
+                        VoucherDate = request.VoucherDate,
+                        ItemId = itemId,
+                        InQuantity = itemRequest.InQuantity,
+                        OutQuantity = itemRequest.OutQuantity,
+                        UnitPrice = itemRequest.UnitPrice,
+                        Notes = itemRequest.Notes
+                    });
+                }
+            }
+
+            await _context.ItemVouchers.AddRangeAsync(vouchersToCreate, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            _logger.LogInformation("Created and saved {Count} vouchers for multiple items by user {UserId}", 
+                vouchersToCreate.Count, userId);
+
+            var response = new CreateVoucherWithManyItemsResponse
+            {
+                Id = Guid.NewGuid(),
+                VoucherCode = request.VoucherCode,
+                VoucherDate = request.VoucherDate,
+                ItemsCount = vouchersToCreate.Count
+            };
+
+            return _responseHandler.Success(response, "Vouchers created successfully.");
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+    catch (OperationCanceledException)
+    {
+        _logger.LogInformation("CreateVoucherWithManyItemsAsync cancelled by user {UserId}", userId);
+        throw;
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error creating vouchers for multiple items by user {UserId}", userId);
+        return _responseHandler.InternalServerError<CreateVoucherWithManyItemsResponse>(
+            "An error occurred while creating the vouchers.");
+    }
+}
+
 
     public async Task<Response<UpdateVoucherResponse>> UpdateVoucherAsync(
         Guid userId,
@@ -414,23 +559,49 @@ public class ItemVoucherService : IItemVoucherService
                 return _responseHandler.BadRequest<UpdateVoucherResponse>("Insufficient available quantity for this voucher.");
             }
 
-            var voucherEntity = await _context.ItemVouchers
-                .FirstOrDefaultAsync(iv => iv.Id == request.Id, cancellationToken);
-
-            if (voucherEntity == null)
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+            try
             {
-                return _responseHandler.NotFound<UpdateVoucherResponse>("Voucher not found.");
+                var currentNetQuantityTx = await _context.ItemVouchers
+                    .Where(iv => iv.ItemId == voucher.iv.ItemId && iv.Id != request.Id)
+                    .Select(iv => iv.InQuantity - iv.OutQuantity)
+                    .SumAsync(cancellationToken);
+
+                var projectedAvailableTx = voucher.ItemOpening + currentNetQuantityTx + newNetQuantity;
+                if (projectedAvailableTx < 0)
+                {
+                    _logger.LogWarning("Insufficient quantity for item {ItemId} when updating voucher (after recheck) by user {UserId}. Projected available: {Projected}",
+                        voucher.iv.ItemId, userId, projectedAvailableTx);
+                    await transaction.RollbackAsync(cancellationToken);
+                    return _responseHandler.BadRequest<UpdateVoucherResponse>("Insufficient available quantity for this voucher.");
+                }
+
+                var voucherEntity = await _context.ItemVouchers
+                    .FirstOrDefaultAsync(iv => iv.Id == request.Id, cancellationToken);
+
+                if (voucherEntity == null)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return _responseHandler.NotFound<UpdateVoucherResponse>("Voucher not found.");
+                }
+
+                _mapper.Map(request, voucherEntity);
+
+                await _context.SaveChangesAsync(cancellationToken);
+
+                await transaction.CommitAsync(cancellationToken);
+
+                var response = _mapper.Map<UpdateVoucherResponse>(voucherEntity);
+                response.VoucherDate = DateTime.SpecifyKind(response.VoucherDate, DateTimeKind.Utc);
+
+                _logger.LogInformation("Updated voucher {VoucherId} by user {UserId}", request.Id, userId);
+                return _responseHandler.Success(response, "Voucher updated successfully.");
             }
-
-            _mapper.Map(request, voucherEntity);
-
-            await _context.SaveChangesAsync(cancellationToken);
-
-            var response = _mapper.Map<UpdateVoucherResponse>(voucherEntity);
-            response.VoucherDate = DateTime.SpecifyKind(response.VoucherDate, DateTimeKind.Utc);
-
-            _logger.LogInformation("Updated voucher {VoucherId} by user {UserId}", request.Id, userId);
-            return _responseHandler.Success(response, "Voucher updated successfully.");
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
         }
         catch (OperationCanceledException)
         {

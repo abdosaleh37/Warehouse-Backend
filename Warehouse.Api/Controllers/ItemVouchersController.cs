@@ -1,8 +1,9 @@
-using FluentValidation;
+﻿using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Warehouse.DataAccess.Services.ItemVoucherService;
 using Warehouse.Entities.DTO.ItemVoucher.Create;
+using Warehouse.Entities.DTO.ItemVoucher.CreateWithManyItems;
 using Warehouse.Entities.DTO.ItemVoucher.Delete;
 using Warehouse.Entities.DTO.ItemVoucher.GetById;
 using Warehouse.Entities.DTO.ItemVoucher.GetMonthlyVouchersOfItem;
@@ -24,6 +25,7 @@ public class ItemVouchersController : ControllerBase
     private readonly IValidator<GetMonthlyVouchersOfItemRequest> _getMonthlyVouchersOfItemValidator;
     private readonly IValidator<GetVoucherByIdRequest> _getVoucherByIdValidator;
     private readonly IValidator<CreateVoucherRequest> _createVoucherValidator;
+    private readonly IValidator<CreateVoucherWithManyItemsRequest> _createVoucherWithManyItemsValidator;
     private readonly IValidator<UpdateVoucherRequest> _updateVoucherValidator;
     private readonly IValidator<DeleteVoucherRequest> _deleteteVoucherValidator;
 
@@ -35,6 +37,7 @@ public class ItemVouchersController : ControllerBase
         IValidator<GetMonthlyVouchersOfItemRequest> getMonthlyVouchersOfItemValidator,
         IValidator<GetVoucherByIdRequest> getVoucherByIdValidator,
         IValidator<CreateVoucherRequest> createVoucherValidator,
+        IValidator<CreateVoucherWithManyItemsRequest> createVoucherWithManyItemsValidator,
         IValidator<UpdateVoucherRequest> updateVoucherValidator,
         IValidator<DeleteVoucherRequest> deleteteVoucherValidator)
     {
@@ -45,6 +48,7 @@ public class ItemVouchersController : ControllerBase
         _getMonthlyVouchersOfItemValidator = getMonthlyVouchersOfItemValidator;
         _getVoucherByIdValidator = getVoucherByIdValidator;
         _createVoucherValidator = createVoucherValidator;
+        _createVoucherWithManyItemsValidator = createVoucherWithManyItemsValidator;
         _updateVoucherValidator = updateVoucherValidator;
         _deleteteVoucherValidator = deleteteVoucherValidator;
     }
@@ -148,6 +152,30 @@ public class ItemVouchersController : ControllerBase
         }
 
         var response = await _itemVoucherService.CreateVoucherAsync(userId, request, cancellationToken);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpPost("with-many-items")]
+    public async Task<ActionResult<Response<CreateVoucherWithManyItemsResponse>>> CreateVoucherWithManyItems(
+        [FromBody] CreateVoucherWithManyItemsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
+        var validationResult = await _createVoucherWithManyItemsValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = validationResult.Errors.FlattenErrors();
+            _logger.LogWarning("Invalid create voucher with many items request: {Errors}", errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+
+        var response = await _itemVoucherService.CreateVoucherWithManyItemsAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
     }
 
