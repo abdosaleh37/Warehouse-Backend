@@ -161,7 +161,7 @@ public class AuthService : IAuthService
     }
 
     public async Task<Response<RefreshTokenResponse>> RefreshTokenAsync(
-        string refreshToken, 
+        string refreshToken,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Refreshing token");

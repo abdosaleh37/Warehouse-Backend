@@ -104,7 +104,7 @@ public class SectionService : ISectionService
         {
             var category = await _context.Categories
                 .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == request.CategoryId 
+                .FirstOrDefaultAsync(c => c.Id == request.CategoryId
                     && c.Warehouse.UserId == userId, cancellationToken);
 
             if (category == null)
@@ -226,7 +226,7 @@ public class SectionService : ISectionService
         try
         {
             var category = await _context.Categories
-                .FirstOrDefaultAsync(c => c.Id == request.CategoryId 
+                .FirstOrDefaultAsync(c => c.Id == request.CategoryId
                     && c.Warehouse.UserId == userId, cancellationToken);
 
             if (category == null)
@@ -316,7 +316,7 @@ public class SectionService : ISectionService
         try
         {
             var section = await _context.Sections
-            .FirstOrDefaultAsync(s => s.Id == request.Id 
+            .FirstOrDefaultAsync(s => s.Id == request.Id
                 && s.Category.Warehouse.UserId == userId, cancellationToken);
 
             if (section == null)

@@ -70,7 +70,7 @@ public static class DataAccessServiceCollectionExtensions
 
             // User settings
             options.User.RequireUniqueEmail = true;
-            
+
             // Sign-in settings
             options.SignIn.RequireConfirmedEmail = false;
             options.SignIn.RequireConfirmedPhoneNumber = false;

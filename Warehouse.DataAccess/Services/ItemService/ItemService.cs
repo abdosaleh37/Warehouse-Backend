@@ -42,7 +42,7 @@ public class ItemService : IItemService
         try
         {
             var section = await _context.Sections
-                .FirstOrDefaultAsync(s => s.Id == request.SectionId 
+                .FirstOrDefaultAsync(s => s.Id == request.SectionId
                     && s.Category.Warehouse.UserId == userId, cancellationToken);
 
             if (section == null)
@@ -176,7 +176,7 @@ public class ItemService : IItemService
 
             var itemsWithVouchers = await _context.Items
                 .Where(i => i.Section.Category.Warehouse.UserId == userId &&
-                    i.ItemVouchers.Any(v => v.VoucherDate >= startOfMonth 
+                    i.ItemVouchers.Any(v => v.VoucherDate >= startOfMonth
                         && v.VoucherDate < startOfNextMonth))
                 .Include(i => i.Section)
                     .ThenInclude(s => s.Category)
@@ -185,7 +185,7 @@ public class ItemService : IItemService
                 {
                     Item = i,
                     MonthVouchers = i.ItemVouchers
-                        .Where(v => v.VoucherDate >= startOfMonth 
+                        .Where(v => v.VoucherDate >= startOfMonth
                             && v.VoucherDate < startOfNextMonth)
                         .ToList()
                 })
@@ -357,7 +357,7 @@ public class ItemService : IItemService
         {
             var section = await _context.Sections
                 .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.Id == request.SectionId 
+                .FirstOrDefaultAsync(s => s.Id == request.SectionId
                     && s.Category.Warehouse.UserId == userId, cancellationToken);
 
             if (section == null)
@@ -368,7 +368,7 @@ public class ItemService : IItemService
 
             var existingItem = await _context.Items
                 .AsNoTracking()
-                .FirstOrDefaultAsync(i => i.SectionId == request.SectionId 
+                .FirstOrDefaultAsync(i => i.SectionId == request.SectionId
                     && i.ItemCode == request.ItemCode, cancellationToken);
 
             if (existingItem != null)
@@ -413,7 +413,7 @@ public class ItemService : IItemService
         try
         {
             var item = await _context.Items
-                .FirstOrDefaultAsync(i => i.Id == request.Id 
+                .FirstOrDefaultAsync(i => i.Id == request.Id
                     && i.Section.Category.Warehouse.UserId == userId, cancellationToken);
 
             if (item == null)
@@ -469,7 +469,7 @@ public class ItemService : IItemService
         try
         {
             var item = await _context.Items
-                .FirstOrDefaultAsync(i => i.Id == request.Id 
+                .FirstOrDefaultAsync(i => i.Id == request.Id
                     && i.Section.Category.Warehouse.UserId == userId, cancellationToken);
 
             if (item == null)

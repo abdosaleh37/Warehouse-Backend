@@ -12,7 +12,7 @@ public class ErrorController : ControllerBase
     private readonly ResponseHandler _responseHandler;
 
     public ErrorController(
-        ILogger<ErrorController> logger, 
+        ILogger<ErrorController> logger,
         ResponseHandler responseHandler)
     {
         _logger = logger;

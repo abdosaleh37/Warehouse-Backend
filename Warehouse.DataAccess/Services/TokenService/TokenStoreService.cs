@@ -16,7 +16,7 @@ public class TokenStoreService : ITokenStoreService
     private readonly IConfiguration _configuration;
 
     public TokenStoreService(
-        WarehouseDbContext context, 
+        WarehouseDbContext context,
         IConfiguration configuration)
     {
         _context = context;
@@ -58,7 +58,7 @@ public class TokenStoreService : ITokenStoreService
     }
 
     public async Task SaveRefreshTokenAsync(
-        Guid userId, 
+        Guid userId,
         string refreshToken)
     {
         var token = new UserRefreshToken
@@ -95,7 +95,7 @@ public class TokenStoreService : ITokenStoreService
     }
 
     public async Task<(string AccessToken, string RefreshToken)> GenerateAndStoreTokensAsync(
-        Guid userId, 
+        Guid userId,
         ApplicationUser user)
     {
         var access = await CreateAccessTokenAsync(user);

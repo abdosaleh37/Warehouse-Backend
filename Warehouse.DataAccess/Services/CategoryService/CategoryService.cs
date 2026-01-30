@@ -214,7 +214,7 @@ namespace Warehouse.DataAccess.Services.CategoryService
             try
             {
                 var category = await _context.Categories
-                    .FirstOrDefaultAsync(c => c.Id == request.Id 
+                    .FirstOrDefaultAsync(c => c.Id == request.Id
                         && c.Warehouse.UserId == userId, cancellationToken);
 
                 if (category == null)
@@ -254,7 +254,7 @@ namespace Warehouse.DataAccess.Services.CategoryService
             try
             {
                 var category = await _context.Categories
-                    .FirstOrDefaultAsync(c => c.Id == request.Id 
+                    .FirstOrDefaultAsync(c => c.Id == request.Id
                         && c.Warehouse.UserId == userId, cancellationToken);
 
                 if (category == null)

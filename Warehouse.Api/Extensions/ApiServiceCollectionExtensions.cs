@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using NSwag;
@@ -18,7 +18,7 @@ public static class ApiServiceCollectionExtensions
     {
         services.AddCors(options =>
         {
-            var allowedOrigins = configuration.GetSection("AllowedOrigins").Get<string[]>() 
+            var allowedOrigins = configuration.GetSection("AllowedOrigins").Get<string[]>()
                 ?? new[] { "*" };
 
             options.AddPolicy("WarehousePolicy", builder =>
@@ -67,7 +67,7 @@ public static class ApiServiceCollectionExtensions
             .AddJwtBearer(options =>
             {
                 var jwtSettings = configuration.GetSection("JWT").Get<JwtSettings>();
-                
+
                 if (string.IsNullOrEmpty(jwtSettings?.SigningKey))
                 {
                     throw new InvalidOperationException("JWT SigningKey is not configured. Set it via user secrets or environment variables.");
