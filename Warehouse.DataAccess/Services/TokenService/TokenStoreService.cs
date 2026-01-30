@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -15,7 +15,9 @@ public class TokenStoreService : ITokenStoreService
     private readonly WarehouseDbContext _context;
     private readonly IConfiguration _configuration;
 
-    public TokenStoreService(WarehouseDbContext context, IConfiguration configuration)
+    public TokenStoreService(
+        WarehouseDbContext context,
+        IConfiguration configuration)
     {
         _context = context;
         _configuration = configuration;
@@ -55,7 +57,9 @@ public class TokenStoreService : ITokenStoreService
         return Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
     }
 
-    public async Task SaveRefreshTokenAsync(Guid userId, string refreshToken)
+    public async Task SaveRefreshTokenAsync(
+        Guid userId,
+        string refreshToken)
     {
         var token = new UserRefreshToken
         {
@@ -90,7 +94,9 @@ public class TokenStoreService : ITokenStoreService
         await _context.SaveChangesAsync();
     }
 
-    public async Task<(string AccessToken, string RefreshToken)> GenerateAndStoreTokensAsync(Guid userId, ApplicationUser user)
+    public async Task<(string AccessToken, string RefreshToken)> GenerateAndStoreTokensAsync(
+        Guid userId,
+        ApplicationUser user)
     {
         var access = await CreateAccessTokenAsync(user);
         var refresh = GenerateRefreshToken();

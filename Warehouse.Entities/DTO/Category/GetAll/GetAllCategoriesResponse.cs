@@ -5,7 +5,7 @@
         public List<GetAllCategoriesResult> Categories { get; set; } = [];
         public Guid WarehouseId { get; set; }
         public string WarehouseName { get; set; } = string.Empty;
-        public DateTime WarehouseCreateAt { get; set; }
+        public DateTime WarehouseCreatedAt { get; set; }
         public int TotalCount { get; set; }
     }
 }

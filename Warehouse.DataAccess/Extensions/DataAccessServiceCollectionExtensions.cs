@@ -44,12 +44,6 @@ public static class DataAccessServiceCollectionExtensions
         services.AddDbContext<WarehouseDbContext>(options =>
             options.UseSqlServer(connectionString, sqlOptions =>
             {
-                // Enable connection resiliency
-                sqlOptions.EnableRetryOnFailure(
-                    maxRetryCount: 5,
-                    maxRetryDelay: TimeSpan.FromSeconds(30),
-                    errorNumbersToAdd: null);
-                
                 // Set command timeout
                 sqlOptions.CommandTimeout(30);
             }));
@@ -76,7 +70,7 @@ public static class DataAccessServiceCollectionExtensions
 
             // User settings
             options.User.RequireUniqueEmail = true;
-            
+
             // Sign-in settings
             options.SignIn.RequireConfirmedEmail = false;
             options.SignIn.RequireConfirmedPhoneNumber = false;

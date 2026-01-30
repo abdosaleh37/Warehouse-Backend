@@ -1,4 +1,4 @@
-using Serilog;
+﻿using Serilog;
 using Warehouse.Api.Extensions;
 using Warehouse.DataAccess.Extensions;
 
@@ -45,26 +45,31 @@ public class Program
             }
 
             // Configure the HTTP request pipeline.
-            //if (app.Environment.IsDevelopment())
-            //{
+            if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
+            {
                 app.UseOpenApi();
                 app.UseSwaggerUi(settings =>
                 {
                     settings.DocExpansion = "list";
                 });
-            //}
+            }
 
             app.UseHttpsRedirection();
 
             app.UseCors("WarehousePolicy");
 
             app.UseAuthentication();
+
             app.UseAuthorization();
 
             app.MapControllers();
+
+            app.UseStaticFiles();
+
             app.MapHealthChecks("/health");
 
             Log.Information("Warehouse API started successfully");
+
             app.Run();
         }
         catch (Exception ex)

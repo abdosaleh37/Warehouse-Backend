@@ -1,4 +1,5 @@
-using Warehouse.Entities.DTO.ItemVoucher.Create;
+﻿using Warehouse.Entities.DTO.ItemVoucher.Create;
+using Warehouse.Entities.DTO.ItemVoucher.CreateWithManyItems;
 using Warehouse.Entities.DTO.ItemVoucher.Delete;
 using Warehouse.Entities.DTO.ItemVoucher.GetById;
 using Warehouse.Entities.DTO.ItemVoucher.GetMonthlyVouchersOfItem;
@@ -28,6 +29,11 @@ public interface IItemVoucherService
     Task<Response<CreateVoucherResponse>> CreateVoucherAsync(
         Guid userId,
         CreateVoucherRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<Response<CreateVoucherWithManyItemsResponse>> CreateVoucherWithManyItemsAsync(
+        Guid userId,
+        CreateVoucherWithManyItemsRequest request,
         CancellationToken cancellationToken = default);
 
     Task<Response<UpdateVoucherResponse>> UpdateVoucherAsync(
