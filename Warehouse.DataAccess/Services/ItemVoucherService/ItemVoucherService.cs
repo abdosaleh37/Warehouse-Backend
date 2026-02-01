@@ -347,36 +347,56 @@ public class ItemVoucherService : IItemVoucherService
                 return _responseHandler.NotFound<CreateVoucherResponse>("Item not found.");
             }
 
-            var currentNetQuantity = await _context.ItemVouchers
+            var currentNetSums = await _context.ItemVouchers
                 .Where(iv => iv.ItemId == item.Id)
-                .Select(iv => iv.InQuantity - iv.OutQuantity)
-                .SumAsync(cancellationToken);
+                .GroupBy(iv => 1)
+                .Select(g => new
+                {
+                    NetQuantity = g.Sum(iv => iv.InQuantity - iv.OutQuantity),
+                    NetValue = g.Sum(iv => (iv.InQuantity - iv.OutQuantity) * iv.UnitPrice)
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            var currentNetQuantity = currentNetSums?.NetQuantity ?? 0;
+            var currentNetValue = currentNetSums?.NetValue ?? 0m;
 
             var newNetQuantity = request.InQuantity - request.OutQuantity;
+            var newNetValue = newNetQuantity * request.UnitPrice;
             var projectedAvailable = item.OpeningQuantity + currentNetQuantity + newNetQuantity;
+            var projectedValue = (item.OpeningQuantity * item.OpeningUnitPrice) + currentNetValue + newNetValue;
 
-            if (projectedAvailable < 0)
+            if (projectedAvailable < 0 || projectedValue < 0)
             {
-                _logger.LogWarning("Insufficient quantity for item {ItemId} when creating voucher by user {UserId}. Projected available: {Projected}",
-                    item.Id, userId, projectedAvailable);
-                return _responseHandler.BadRequest<CreateVoucherResponse>("Insufficient available quantity for this voucher.");
+                _logger.LogWarning("Insufficient quantity or value for item {ItemId} when creating voucher by user {UserId}. Projected available: {Projected}, Projected value: {ProjectedValue}",
+                    item.Id, userId, projectedAvailable, projectedValue);
+                return _responseHandler.BadRequest<CreateVoucherResponse>("Insufficient available quantity or value for this voucher.");
             }
 
             await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
             try
             {
-                var currentNetQuantityTx = await _context.ItemVouchers
+                var currentNetSumsTx = await _context.ItemVouchers
                     .Where(iv => iv.ItemId == item.Id)
-                    .Select(iv => iv.InQuantity - iv.OutQuantity)
-                    .SumAsync(cancellationToken);
+                    .GroupBy(iv => 1)
+                    .Select(g => new
+                    {
+                        NetQuantity = g.Sum(iv => iv.InQuantity - iv.OutQuantity),
+                        NetValue = g.Sum(iv => (iv.InQuantity - iv.OutQuantity) * iv.UnitPrice)
+                    })
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                var currentNetQuantityTx = currentNetSumsTx?.NetQuantity ?? 0;
+                var currentNetValueTx = currentNetSumsTx?.NetValue ?? 0m;
 
                 var projectedAvailableTx = item.OpeningQuantity + currentNetQuantityTx + newNetQuantity;
-                if (projectedAvailableTx < 0)
+                var projectedValueTx = (item.OpeningQuantity * item.OpeningUnitPrice) + currentNetValueTx + newNetValue;
+
+                if (projectedAvailableTx < 0 || projectedValueTx < 0)
                 {
-                    _logger.LogWarning("Insufficient quantity for item {ItemId} when creating voucher (after recheck) by user {UserId}. Projected available: {Projected}",
-                        item.Id, userId, projectedAvailableTx);
+                    _logger.LogWarning("Insufficient quantity or value for item {ItemId} when creating voucher (after recheck) by user {UserId}. Projected available: {Projected}, Projected value: {ProjectedValue}",
+                        item.Id, userId, projectedAvailableTx, projectedValueTx);
                     await transaction.RollbackAsync(cancellationToken);
-                    return _responseHandler.BadRequest<CreateVoucherResponse>("Insufficient available quantity for this voucher.");
+                    return _responseHandler.BadRequest<CreateVoucherResponse>("Insufficient available quantity or value for this voucher.");
                 }
 
                 var voucherEntity = _mapper.Map<ItemVoucher>(request);
@@ -440,12 +460,17 @@ public class ItemVoucherService : IItemVoucherService
             await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
             try
             {
-                // Compute current net quantities for all items inside the transaction
-                var netQuantities = await _context.ItemVouchers
+                // Compute current net quantities and values for all items inside the transaction
+                var netSums = await _context.ItemVouchers
                     .Where(iv => itemIds.Contains(iv.ItemId))
                     .GroupBy(iv => iv.ItemId)
-                    .Select(g => new { ItemId = g.Key, Net = g.Sum(iv => iv.InQuantity - iv.OutQuantity) })
-                    .ToDictionaryAsync(x => x.ItemId, x => x.Net, cancellationToken);
+                    .Select(g => new
+                    {
+                        ItemId = g.Key,
+                        NetQuantity = g.Sum(iv => iv.InQuantity - iv.OutQuantity),
+                        NetValue = g.Sum(iv => (iv.InQuantity - iv.OutQuantity) * iv.UnitPrice)
+                    })
+                    .ToDictionaryAsync(x => x.ItemId, cancellationToken);
 
                 var vouchersToCreate = new List<ItemVoucher>();
 
@@ -453,25 +478,25 @@ public class ItemVoucherService : IItemVoucherService
                 {
                     var itemId = item.Key;
                     var itemEntity = item.Value;
-                    var currentNetQuantity = netQuantities.TryGetValue(itemId, out var net) ? net : 0;
-                    var itemRequests = request.Items.Where(i => i.ItemId == itemId).ToList();
+                    var currentNetQuantity = netSums.TryGetValue(itemId, out var netSum) ? netSum.NetQuantity : 0;
+                    var currentNetValue = netSums.TryGetValue(itemId, out var netSumValue) ? netSumValue.NetValue : 0m;
+                    var itemRequest = request.Items.First(i => i.ItemId == itemId);
 
-                    foreach (var itemRequest in itemRequests)
+                    var newNetQuantity = itemRequest.InQuantity - itemRequest.OutQuantity;
+                    var newNetValue = newNetQuantity * itemRequest.UnitPrice;
+                    var projectedAvailableTx = itemEntity.OpeningQuantity + currentNetQuantity + newNetQuantity;
+                    var projectedValueTx = (itemEntity.OpeningQuantity * itemEntity.OpeningUnitPrice) + currentNetValue + newNetValue;
+
+                    if (projectedAvailableTx < 0 || projectedValueTx < 0)
                     {
-                        var newNetQuantity = itemRequest.InQuantity - itemRequest.OutQuantity;
-                        var projectedAvailableTx = itemEntity.OpeningQuantity + currentNetQuantity + newNetQuantity;
+                        _logger.LogWarning(
+                            "Insufficient quantity or value for item {ItemId} when creating voucher (after recheck) by user {UserId}. Projected available: {Projected}, Projected value: {ProjectedValue}",
+                            itemId, userId, projectedAvailableTx, projectedValueTx);
+                        await transaction.RollbackAsync(cancellationToken);
+                        return _responseHandler.BadRequest<CreateVoucherWithManyItemsResponse>(
+                            $"Insufficient available quantity or value for item {itemId}.");
+                    }
 
-                        if (projectedAvailableTx < 0)
-                        {
-                            _logger.LogWarning(
-                                "Insufficient quantity for item {ItemId} when creating voucher (after recheck) by user {UserId}. Projected available: {Projected}",
-                                itemId, userId, projectedAvailableTx);
-                            await transaction.RollbackAsync(cancellationToken);
-                            return _responseHandler.BadRequest<CreateVoucherWithManyItemsResponse>(
-                                $"Insufficient available quantity for item {itemId}.");
-                        }
-
-                        // Add to list of vouchers to create
                     vouchersToCreate.Add(new ItemVoucher
                     {
                         VoucherCode = request.VoucherCode,
@@ -482,7 +507,6 @@ public class ItemVoucherService : IItemVoucherService
                         UnitPrice = itemRequest.UnitPrice,
                         Notes = itemRequest.Notes
                     });
-                    }
                 }
 
                 await _context.ItemVouchers.AddRangeAsync(vouchersToCreate, cancellationToken);
@@ -535,7 +559,7 @@ public class ItemVoucherService : IItemVoucherService
                 .AsNoTracking()
                 .Where(iv => iv.Id == request.Id
                     && iv.Item.Section.Category.Warehouse.UserId == userId)
-                .Select(iv => new { iv, ItemOpening = iv.Item.OpeningQuantity })
+                .Select(iv => new { iv, ItemOpening = iv.Item.OpeningQuantity, ItemOpeningUnitPrice = iv.Item.OpeningUnitPrice })
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (voucher == null)
@@ -544,36 +568,56 @@ public class ItemVoucherService : IItemVoucherService
                 return _responseHandler.NotFound<UpdateVoucherResponse>("Voucher not found.");
             }
 
-            var currentNetQuantity = await _context.ItemVouchers
+            var currentNetSums = await _context.ItemVouchers
                 .Where(iv => iv.ItemId == voucher.iv.ItemId && iv.Id != request.Id)
-                .Select(iv => iv.InQuantity - iv.OutQuantity)
-                .SumAsync(cancellationToken);
+                .GroupBy(iv => 1)
+                .Select(g => new
+                {
+                    NetQuantity = g.Sum(iv => iv.InQuantity - iv.OutQuantity),
+                    NetValue = g.Sum(iv => (iv.InQuantity - iv.OutQuantity) * iv.UnitPrice)
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            var currentNetQuantity = currentNetSums?.NetQuantity ?? 0;
+            var currentNetValue = currentNetSums?.NetValue ?? 0m;
 
             var newNetQuantity = request.InQuantity - request.OutQuantity;
+            var newNetValue = newNetQuantity * request.UnitPrice;
             var projectedAvailable = voucher.ItemOpening + currentNetQuantity + newNetQuantity;
+            var projectedValue = (voucher.ItemOpening * voucher.ItemOpeningUnitPrice) + currentNetValue + newNetValue;
 
-            if (projectedAvailable < 0)
+            if (projectedAvailable < 0 || projectedValue < 0)
             {
-                _logger.LogWarning("Insufficient quantity for item {ItemId} when updating voucher by user {UserId}. Projected available: {Projected}",
-                    voucher.iv.ItemId, userId, projectedAvailable);
-                return _responseHandler.BadRequest<UpdateVoucherResponse>("Insufficient available quantity for this voucher.");
+                _logger.LogWarning("Insufficient quantity or value for item {ItemId} when updating voucher by user {UserId}. Projected available: {Projected}, Projected value: {ProjectedValue}",
+                    voucher.iv.ItemId, userId, projectedAvailable, projectedValue);
+                return _responseHandler.BadRequest<UpdateVoucherResponse>("Insufficient available quantity or value for this voucher.");
             }
 
             await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
             try
             {
-                var currentNetQuantityTx = await _context.ItemVouchers
+                var currentNetSumsTx = await _context.ItemVouchers
                     .Where(iv => iv.ItemId == voucher.iv.ItemId && iv.Id != request.Id)
-                    .Select(iv => iv.InQuantity - iv.OutQuantity)
-                    .SumAsync(cancellationToken);
+                    .GroupBy(iv => 1)
+                    .Select(g => new
+                    {
+                        NetQuantity = g.Sum(iv => iv.InQuantity - iv.OutQuantity),
+                        NetValue = g.Sum(iv => (iv.InQuantity - iv.OutQuantity) * iv.UnitPrice)
+                    })
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                var currentNetQuantityTx = currentNetSumsTx?.NetQuantity ?? 0;
+                var currentNetValueTx = currentNetSumsTx?.NetValue ?? 0m;
 
                 var projectedAvailableTx = voucher.ItemOpening + currentNetQuantityTx + newNetQuantity;
-                if (projectedAvailableTx < 0)
+                var projectedValueTx = (voucher.ItemOpening * voucher.ItemOpeningUnitPrice) + currentNetValueTx + newNetValue;
+
+                if (projectedAvailableTx < 0 || projectedValueTx < 0)
                 {
-                    _logger.LogWarning("Insufficient quantity for item {ItemId} when updating voucher (after recheck) by user {UserId}. Projected available: {Projected}",
-                        voucher.iv.ItemId, userId, projectedAvailableTx);
+                    _logger.LogWarning("Insufficient quantity or value for item {ItemId} when updating voucher (after recheck) by user {UserId}. Projected available: {Projected}, Projected value: {ProjectedValue}",
+                        voucher.iv.ItemId, userId, projectedAvailableTx, projectedValueTx);
                     await transaction.RollbackAsync(cancellationToken);
-                    return _responseHandler.BadRequest<UpdateVoucherResponse>("Insufficient available quantity for this voucher.");
+                    return _responseHandler.BadRequest<UpdateVoucherResponse>("Insufficient available quantity or value for this voucher.");
                 }
 
                 var voucherEntity = await _context.ItemVouchers

@@ -210,6 +210,8 @@ public class ItemService : IItemService
                 return _responseHandler.Success(new GetItemsWithVouchersOfMonthResponse
                 {
                     Items = new List<GetItemsWithVouchersOfMonthResult>(),
+                    TotalIncomeInMonth = 0,
+                    TotalExpenseInMonth = 0,
                     TotalCount = 0
                 }, "No items with vouchers found for the specified month and year.");
             }
@@ -240,6 +242,8 @@ public class ItemService : IItemService
             var response = new GetItemsWithVouchersOfMonthResponse
             {
                 Items = results,
+                TotalIncomeInMonth = (double)results.Sum(i => i.VouchersTotalInValue),
+                TotalExpenseInMonth = (double)results.Sum(i => i.VouchersTotalOutValue),
                 TotalCount = results.Count
             };
 
