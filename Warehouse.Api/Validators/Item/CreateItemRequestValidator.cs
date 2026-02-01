@@ -26,6 +26,12 @@ namespace Warehouse.Api.Validators.Item
 
             RuleFor(x => x.OpeningUnitPrice)
                 .GreaterThanOrEqualTo(0).WithMessage("OpeningUnitPrice must be non-negative.");
+
+            RuleFor(x => x.OpeningDate)
+                .NotEmpty().WithMessage("Opening date is required.")
+                .Must(d => d.Kind == DateTimeKind.Utc).WithMessage("Opening date must be in UTC.")
+                .Must(d => d.Date <= DateTime.UtcNow.AddHours(14).Date).WithMessage("Opening date cannot be in the future.");
+
         }
     }
 }

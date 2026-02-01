@@ -51,9 +51,22 @@ public class ItemService : IItemService
                 return _responseHandler.NotFound<GetItemsOfSectionResponse>("Section not found");
             }
 
-            var items = await _context.Items
+            var search = request.SearchString?.Trim();
+
+            var query = _context.Items
                 .AsNoTracking()
-                .Where(i => i.SectionId == request.SectionId)
+                .Where(i => i.SectionId == request.SectionId);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(i =>
+                    (i.ItemCode != null && EF.Functions.Like(i.ItemCode, $"%{search}%")) ||
+                    (i.PartNo != null && EF.Functions.Like(i.PartNo, $"%{search}%")) ||
+                    (i.Description != null && EF.Functions.Like(i.Description, $"%{search}%"))
+                );
+            }
+
+            var items = await query
                 .OrderBy(i => i.ItemCode.Length)
                     .ThenBy(i => i.ItemCode)
                         .ThenBy(i => i.CreatedAt)
@@ -171,8 +184,8 @@ public class ItemService : IItemService
 
         try
         {
-            var startOfMonth = new DateTime(request.Year, request.Month, 1);
-            var startOfNextMonth = startOfMonth.AddMonths(1);
+            var startOfMonth = DateTime.SpecifyKind(new DateTime(request.Year, request.Month, 1), DateTimeKind.Utc);
+            var startOfNextMonth = DateTime.SpecifyKind(startOfMonth.AddMonths(1), DateTimeKind.Utc);
 
             var itemsWithVouchers = await _context.Items
                 .Where(i => i.Section.Category.Warehouse.UserId == userId &&
@@ -197,6 +210,8 @@ public class ItemService : IItemService
                 return _responseHandler.Success(new GetItemsWithVouchersOfMonthResponse
                 {
                     Items = new List<GetItemsWithVouchersOfMonthResult>(),
+                    TotalIncomeInMonth = 0,
+                    TotalExpenseInMonth = 0,
                     TotalCount = 0
                 }, "No items with vouchers found for the specified month and year.");
             }
@@ -227,6 +242,8 @@ public class ItemService : IItemService
             var response = new GetItemsWithVouchersOfMonthResponse
             {
                 Items = results,
+                TotalIncomeInMonth = results.Sum(i => i.VouchersTotalInValue),
+                TotalExpenseInMonth = results.Sum(i => i.VouchersTotalOutValue),
                 TotalCount = results.Count
             };
 

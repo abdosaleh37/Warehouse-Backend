@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Warehouse.DataAccess.Services.ItemService;
@@ -56,6 +56,7 @@ public class ItemsController : ControllerBase
     [HttpGet("section/{id:guid}")]
     public async Task<ActionResult<Response<GetItemsOfSectionResponse>>> GetItemsOfSection(
         [FromRoute] Guid id,
+        [FromQuery] string? q,
         CancellationToken cancellationToken)
     {
         if (!User.TryGetUserId(out Guid userId))
@@ -64,7 +65,7 @@ public class ItemsController : ControllerBase
                 _responseHandler.Unauthorized<object>("Invalid user"));
         }
 
-        var request = new GetItemsOfSectionRequest { SectionId = id };
+        var request = new GetItemsOfSectionRequest { SectionId = id, SearchString = q };
         var validationResult = await _getItemsOfSectionValidator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
