@@ -242,8 +242,8 @@ public class ItemService : IItemService
             var response = new GetItemsWithVouchersOfMonthResponse
             {
                 Items = results,
-                TotalIncomeInMonth = (double)results.Sum(i => i.VouchersTotalInValue),
-                TotalExpenseInMonth = (double)results.Sum(i => i.VouchersTotalOutValue),
+                TotalIncomeInMonth = results.Sum(i => i.VouchersTotalInValue),
+                TotalExpenseInMonth = results.Sum(i => i.VouchersTotalOutValue),
                 TotalCount = results.Count
             };
 
