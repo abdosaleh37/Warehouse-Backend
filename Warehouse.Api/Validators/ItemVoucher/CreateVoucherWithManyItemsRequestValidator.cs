@@ -13,7 +13,9 @@ namespace Warehouse.Api.Validators.ItemVoucher
 
             RuleFor(x => x.VoucherDate)
                 .NotEmpty().WithMessage("Voucher date is required.")
-                .LessThanOrEqualTo(DateTime.Now).WithMessage("Voucher date cannot be in the future.");
+                .Must(d => d.Kind == DateTimeKind.Utc).WithMessage("Voucher date must be in UTC.")
+                .Must(d => d.Date <= DateTime.UtcNow.AddHours(14).Date).WithMessage("Voucher date cannot be in the future.");
+
 
             RuleFor(x => x.Items)
                 .NotEmpty().WithMessage("At least one item is required.")

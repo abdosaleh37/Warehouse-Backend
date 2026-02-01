@@ -9,6 +9,9 @@ namespace Warehouse.Api.Validators.Item
         {
             RuleFor(x => x.SectionId)
                 .NotEmpty().WithMessage("Section Id must not be empty.");
+
+            RuleFor(x => x.SearchString)
+                .MaximumLength(100).WithMessage("Search string cannot exceed 100 characters");
         }
     }
 }

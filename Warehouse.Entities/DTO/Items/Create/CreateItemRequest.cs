@@ -11,6 +11,6 @@ namespace Warehouse.Entities.DTO.Items.Create
         public UnitOfMeasure Unit { get; set; } = UnitOfMeasure.Piece;
         public int OpeningQuantity { get; set; } = 0;
         public decimal OpeningUnitPrice { get; set; } = 0;
-        public DateTime OpeningDate { get; set; } = new DateTime(2026, 1, 1);
+        public DateTime OpeningDate { get; set; }
     }
 }

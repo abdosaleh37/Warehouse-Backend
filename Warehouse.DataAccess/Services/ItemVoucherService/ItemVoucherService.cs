@@ -211,8 +211,8 @@ public class ItemVoucherService : IItemVoucherService
                 return _responseHandler.NotFound<GetMonthlyVouchersOfItemResponse>("Item not found.");
             }
 
-            var startOfMonth = new DateTime(request.Year, request.Month, 1);
-            var startOfNextMonth = startOfMonth.AddMonths(1);
+            var startOfMonth = DateTime.SpecifyKind(new DateTime(request.Year, request.Month, 1), DateTimeKind.Utc);
+            var startOfNextMonth = DateTime.SpecifyKind(startOfMonth.AddMonths(1), DateTimeKind.Utc);
 
             var preMonthSums = await _context.ItemVouchers
                 .Where(iv => iv.ItemId == request.ItemId
@@ -472,16 +472,16 @@ public class ItemVoucherService : IItemVoucherService
                         }
 
                         // Add to list of vouchers to create
-                        vouchersToCreate.Add(new ItemVoucher
-                        {
-                            VoucherCode = request.VoucherCode,
-                            VoucherDate = request.VoucherDate,
-                            ItemId = itemId,
-                            InQuantity = itemRequest.InQuantity,
-                            OutQuantity = itemRequest.OutQuantity,
-                            UnitPrice = itemRequest.UnitPrice,
-                            Notes = itemRequest.Notes
-                        });
+                    vouchersToCreate.Add(new ItemVoucher
+                    {
+                        VoucherCode = request.VoucherCode,
+                        VoucherDate = request.VoucherDate,
+                        ItemId = itemId,
+                        InQuantity = itemRequest.InQuantity,
+                        OutQuantity = itemRequest.OutQuantity,
+                        UnitPrice = itemRequest.UnitPrice,
+                        Notes = itemRequest.Notes
+                    });
                     }
                 }
 
@@ -496,7 +496,7 @@ public class ItemVoucherService : IItemVoucherService
                 {
                     Id = Guid.NewGuid(),
                     VoucherCode = request.VoucherCode,
-                    VoucherDate = request.VoucherDate,
+                    VoucherDate = DateTime.SpecifyKind(request.VoucherDate, DateTimeKind.Utc),
                     ItemsCount = vouchersToCreate.Count
                 };
 
