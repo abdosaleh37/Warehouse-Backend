@@ -478,8 +478,18 @@ public class ItemVoucherService : IItemVoucherService
                 {
                     var itemId = item.Key;
                     var itemEntity = item.Value;
-                    var currentNetQuantity = netSums.TryGetValue(itemId, out var netSum) ? netSum.NetQuantity : 0;
-                    var currentNetValue = netSums.TryGetValue(itemId, out var netSumValue) ? netSumValue.NetValue : 0m;
+                    int currentNetQuantity;
+                    decimal currentNetValue;
+                    if (netSums.TryGetValue(itemId, out var netSum))
+                    {
+                        currentNetQuantity = netSum.NetQuantity;
+                        currentNetValue = netSum.NetValue;
+                    }
+                    else
+                    {
+                        currentNetQuantity = 0;
+                        currentNetValue = 0m;
+                    }
                     var itemRequest = request.Items.First(i => i.ItemId == itemId);
 
                     var newNetQuantity = itemRequest.InQuantity - itemRequest.OutQuantity;

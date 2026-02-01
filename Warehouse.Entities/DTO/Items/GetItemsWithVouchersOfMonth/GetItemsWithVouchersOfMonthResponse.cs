@@ -3,8 +3,8 @@
     public class GetItemsWithVouchersOfMonthResponse
     {
         public List<GetItemsWithVouchersOfMonthResult> Items { get; set; } = new();
-        public double TotalIncomeInMonth { get; set; }
-        public double TotalExpenseInMonth { get; set; }
+        public decimal TotalIncomeInMonth { get; set; }
+        public decimal TotalExpenseInMonth { get; set; }
         public int TotalCount { get; set; }
     }
 }
