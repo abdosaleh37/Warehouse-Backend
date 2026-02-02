@@ -1,4 +1,4 @@
-using Warehouse.Entities.DTO.Items.Create;
+﻿using Warehouse.Entities.DTO.Items.Create;
 using Warehouse.Entities.DTO.Items.Delete;
 using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
@@ -44,5 +44,10 @@ public interface IItemService
     Task<Response<DeleteItemResponse>> DeleteItemAsync(
         Guid userId,
         DeleteItemRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<byte[]> ExportMonthlyItemsToExcelAsync(
+        Guid userId,
+        GetItemsWithVouchersOfMonthRequest request,
         CancellationToken cancellationToken = default);
 }
