@@ -128,6 +128,45 @@ public class ItemsController : ControllerBase
         return StatusCode((int)response.StatusCode, response);
     }
 
+    [HttpGet("export/monthly-excel/{year:int}/{month:int}")]
+    public async Task<IActionResult> ExportMonthlyItemsToExcel(
+        [FromRoute] int year,
+        [FromRoute] int month,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
+        var request = new GetItemsWithVouchersOfMonthRequest { Year = year, Month = month };
+
+        var validationResult = await _getItemsWithVouchersOfMonthValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = validationResult.Errors.FlattenErrors();
+            _logger.LogWarning("Invalid export monthly items excel request: {Errors}", errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+
+        try
+        {
+            var excelData = await _itemService.ExportMonthlyItemsToExcelAsync(userId, request, cancellationToken);
+
+            var fileName = $"Items_{year}_{month:D2}_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+
+            return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while exporting monthly items to Excel for Month: {Month}, Year: {Year}", month, year);
+            return StatusCode((int)_responseHandler.InternalServerError<object>("An error occurred while exporting data to Excel.").StatusCode,
+                _responseHandler.InternalServerError<object>("An error occurred while exporting data to Excel."));
+        }
+    }
+
     [HttpGet("search")]
     public async Task<ActionResult<Response<SearchItemsResponse>>> SearchItems(
         [FromQuery] SearchItemsRequest request,
