@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using OfficeOpenXml;
 using Warehouse.Entities.DTO.Items.GetItemsWithVouchersOfMonth;
+using Warehouse.Entities.Utilities.Enums;
 
 namespace Warehouse.DataAccess.Services.ExcelExportService;
 
@@ -68,7 +69,7 @@ public class ExcelExportService : IExcelExportService
                 worksheet.Cells[row, 1].Value = item.ItemCode;
                 worksheet.Cells[row, 2].Value = item.PartNo ?? "";
                 worksheet.Cells[row, 3].Value = item.Description;
-                worksheet.Cells[row, 4].Value = item.Unit.ToString();
+                worksheet.Cells[row, 4].Value = TranslateUnitToArabic(item.Unit);
                 worksheet.Cells[row, 5].Value = item.CategoryName;
                 worksheet.Cells[row, 6].Value = item.SectionName;
                 worksheet.Cells[row, 7].Value = item.VouchersTotalInQuantity;
@@ -242,7 +243,7 @@ public class ExcelExportService : IExcelExportService
                     worksheet.Cells[row, 1].Value = item.ItemCode;
                     worksheet.Cells[row, 2].Value = item.PartNo ?? "";
                     worksheet.Cells[row, 3].Value = item.Description;
-                    worksheet.Cells[row, 4].Value = item.UnitArabic;
+                    worksheet.Cells[row, 4].Value = TranslateUnitToArabic(item.Unit);
                     worksheet.Cells[row, 5].Value = item.AvailableQuantity;
                     worksheet.Cells[row, 6].Value = item.UnitPrice;
 
@@ -272,11 +273,11 @@ public class ExcelExportService : IExcelExportService
                 }
 
                 // Set minimum column widths for better readability
-                worksheet.Column(1).Width = Math.Max(worksheet.Column(1).Width, 15); // كود
+                worksheet.Column(1).Width = Math.Max(worksheet.Column(1).Width, 15); // الكود
                 worksheet.Column(2).Width = Math.Max(worksheet.Column(2).Width, 18); // الباركود
                 worksheet.Column(3).Width = Math.Max(worksheet.Column(3).Width, 35); // الصنف
                 worksheet.Column(4).Width = Math.Max(worksheet.Column(4).Width, 12); // الوحدة
-                worksheet.Column(5).Width = Math.Max(worksheet.Column(5).Width, 12); // رصيد
+                worksheet.Column(5).Width = Math.Max(worksheet.Column(5).Width, 12); // الرصيد
                 worksheet.Column(6).Width = Math.Max(worksheet.Column(6).Width, 16); // السعر
 
                 // Format number columns with thousand separators
@@ -315,5 +316,19 @@ public class ExcelExportService : IExcelExportService
         }
 
         return sanitized;
+    }
+
+    private static string TranslateUnitToArabic(UnitOfMeasure unit)
+    {
+        return unit switch
+        {
+            UnitOfMeasure.Piece => "عدد",
+            UnitOfMeasure.Kilogram => "كيلوجرام",
+            UnitOfMeasure.Meter => "متر",
+            UnitOfMeasure.Liter => "لتر",
+            UnitOfMeasure.Box => "صندوق",
+            UnitOfMeasure.Carton => "كرتون",
+            _ => unit.ToString()
+        };
     }
 }
