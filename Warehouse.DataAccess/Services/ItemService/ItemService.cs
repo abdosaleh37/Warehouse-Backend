@@ -699,6 +699,191 @@ public class ItemService : IItemService
         }
     }
 
+    public async Task<byte[]> ExportAllItemsToExcelAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Exporting all items to Excel for user {UserId}", userId);
+
+        try
+        {
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+            // Get all sections with their items for this user
+            var sectionsQuery = _context.Sections
+                .AsNoTracking()
+                .Where(s => s.Category.Warehouse.UserId == userId)
+                .Include(s => s.Items)
+                    .ThenInclude(i => i.ItemVouchers)
+                .Include(s => s.Category)
+                .OrderBy(s => s.Name);
+
+            var sections = await sectionsQuery.ToListAsync(cancellationToken);
+
+            if (sections.Count == 0)
+            {
+                _logger.LogInformation("No sections found for user {UserId}", userId);
+            }
+
+            using var package = new ExcelPackage();
+
+            foreach (var section in sections)
+            {
+                // Order items same as GetItemsOfSection
+                var orderedItems = section.Items
+                    .OrderBy(i => i.ItemCode != null ? i.ItemCode.Length : 0)
+                    .ThenBy(i => i.ItemCode)
+                    .ThenBy(i => i.CreatedAt)
+                    .Select(i => new
+                    {
+                        Item = i,
+                        NetQuantity = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => v.InQuantity - v.OutQuantity) : 0,
+                        NetValue = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice) : 0m
+                    })
+                    .ToList();
+
+                if (orderedItems.Count == 0)
+                {
+                    continue; // Skip sections with no items
+                }
+
+                // Create worksheet for this section
+                var worksheetName = SanitizeSheetName(section.Name);
+                var worksheet = package.Workbook.Worksheets.Add(worksheetName);
+
+                // Set RTL direction for the worksheet
+                worksheet.View.RightToLeft = true;
+
+                // Title row with section name
+                worksheet.Cells[1, 1, 1, 6].Merge = true;
+                worksheet.Cells[1, 1].Value = section.Name;
+                worksheet.Cells[1, 1].Style.Font.Bold = true;
+                worksheet.Cells[1, 1].Style.Font.Size = 16;
+                worksheet.Cells[1, 1].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                worksheet.Cells[1, 1].Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
+                worksheet.Cells[1, 1].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                worksheet.Cells[1, 1].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(217, 217, 217));
+                worksheet.Cells[1, 1].Style.Border.Top.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                worksheet.Cells[1, 1].Style.Border.Bottom.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                worksheet.Cells[1, 1].Style.Border.Left.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                worksheet.Cells[1, 1].Style.Border.Right.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                worksheet.Row(1).Height = 30;
+
+                // Header row - Arabic labels (row 2)
+                worksheet.Cells[2, 1].Value = "الكود";
+                worksheet.Cells[2, 2].Value = "الباركود";
+                worksheet.Cells[2, 3].Value = "الصنف";
+                worksheet.Cells[2, 4].Value = "الوحدة";
+                worksheet.Cells[2, 5].Value = "الرصيد";
+                worksheet.Cells[2, 6].Value = "السعر";
+
+                // Header styling
+                using (var range = worksheet.Cells[2, 1, 2, 6])
+                {
+                    range.Style.Font.Bold = true;
+                    range.Style.Font.Size = 14;
+                    range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                    range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
+                    range.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                    range.Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
+                    range.Style.Border.Top.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                    range.Style.Border.Bottom.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                    range.Style.Border.Left.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                    range.Style.Border.Right.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                }
+
+                // Set header row height
+                worksheet.Row(2).Height = 25;
+
+                // Data rows (starting from row 3)
+                int row = 3;
+                foreach (var item in orderedItems)
+                {
+                    var availableQuantity = item.Item.OpeningQuantity + item.NetQuantity;
+
+                    worksheet.Cells[row, 1].Value = item.Item.ItemCode;
+                    worksheet.Cells[row, 2].Value = item.Item.PartNo ?? "";
+                    worksheet.Cells[row, 3].Value = item.Item.Description;
+                    worksheet.Cells[row, 4].Value = TranslateUnitToArabic(item.Item.Unit);
+                    worksheet.Cells[row, 5].Value = availableQuantity;
+                    worksheet.Cells[row, 6].Value = item.Item.OpeningUnitPrice;
+
+                    // Apply styling to data rows
+                    using (var range = worksheet.Cells[row, 1, row, 6])
+                    {
+                        range.Style.Font.Size = 14;
+                        range.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                        range.Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
+                        range.Style.Border.Top.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                        range.Style.Border.Bottom.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                        range.Style.Border.Left.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                        range.Style.Border.Right.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                    }
+
+                    // Set row height
+                    worksheet.Row(row).Height = 22;
+
+                    row++;
+                }
+
+                // Auto-fit columns first
+                if (row > 3)
+                {
+                    worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+                }
+
+                // Set minimum column widths for better readability
+                worksheet.Column(1).Width = Math.Max(worksheet.Column(1).Width, 15); // كود
+                worksheet.Column(2).Width = Math.Max(worksheet.Column(2).Width, 18); // الباركود
+                worksheet.Column(3).Width = Math.Max(worksheet.Column(3).Width, 35); // الصنف
+                worksheet.Column(4).Width = Math.Max(worksheet.Column(4).Width, 12); // الوحدة
+                worksheet.Column(5).Width = Math.Max(worksheet.Column(5).Width, 12); // رصيد
+                worksheet.Column(6).Width = Math.Max(worksheet.Column(6).Width, 16); // السعر
+
+                // Format number columns with thousand separators
+                for (int i = 3; i < row; i++)
+                {
+                    worksheet.Cells[i, 5].Style.Numberformat.Format = "#,##0";
+                    worksheet.Cells[i, 6].Style.Numberformat.Format = "#,##0.00";
+                }
+            }
+
+            _logger.LogInformation("Excel file generated successfully with {SectionCount} sections for user {UserId}",
+                package.Workbook.Worksheets.Count, userId);
+
+            return package.GetAsByteArray();
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("ExportAllItemsToExcelAsync cancelled for user {UserId}", userId);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while exporting all items to Excel for user {UserId}", userId);
+            throw;
+        }
+    }
+
+    private static string SanitizeSheetName(string name)
+    {
+        // Excel sheet names cannot contain: \ / ? * [ ]
+        // and must be 31 characters or less
+        var invalidChars = new[] { '\\', '/', '?', '*', '[', ']', ':' };
+        var sanitized = name;
+        foreach (var c in invalidChars)
+        {
+            sanitized = sanitized.Replace(c, '_');
+        }
+        
+        if (sanitized.Length > 31)
+        {
+            sanitized = sanitized.Substring(0, 31);
+        }
+        
+        return sanitized;
+    }
+
     private static string TranslateUnitToArabic(UnitOfMeasure unit)
     {
         return unit switch

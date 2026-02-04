@@ -50,4 +50,8 @@ public interface IItemService
         Guid userId,
         GetItemsWithVouchersOfMonthRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<byte[]> ExportAllItemsToExcelAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
 }

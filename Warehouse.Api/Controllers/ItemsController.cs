@@ -167,6 +167,32 @@ public class ItemsController : ControllerBase
         }
     }
 
+    [HttpGet("export/all-excel")]
+    public async Task<IActionResult> ExportAllItemsToExcel(
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
+        try
+        {
+            var excelData = await _itemService.ExportAllItemsToExcelAsync(userId, cancellationToken);
+
+            var fileName = $"AllItems_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+
+            return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while exporting all items to Excel for user {UserId}", userId);
+            return StatusCode((int)_responseHandler.InternalServerError<object>("An error occurred while exporting data to Excel.").StatusCode,
+                _responseHandler.InternalServerError<object>("An error occurred while exporting data to Excel."));
+        }
+    }
+
     [HttpGet("search")]
     public async Task<ActionResult<Response<SearchItemsResponse>>> SearchItems(
         [FromQuery] SearchItemsRequest request,

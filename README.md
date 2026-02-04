@@ -31,7 +31,9 @@ Built on **clean architecture** principles with clear separation of concerns:
 <td width="33%">
 
 ### 🌐 Warehouse.Api
+
 **Presentation Layer**
+
 - RESTful Controllers
 - Request Validators
 - Middleware & Filters
@@ -42,7 +44,9 @@ Built on **clean architecture** principles with clear separation of concerns:
 <td width="33%">
 
 ### 💾 Warehouse.DataAccess
+
 **Data Layer**
+
 - EF Core DbContext
 - Entity Configurations
 - Repository Pattern
@@ -54,7 +58,9 @@ Built on **clean architecture** principles with clear separation of concerns:
 <td width="33%">
 
 ### 📐 Warehouse.Entities
+
 **Domain Layer**
+
 - Entity Models
 - DTOs
 - Response Wrappers
@@ -104,6 +110,7 @@ Built on **clean architecture** principles with clear separation of concerns:
 <td>
 
 ### Backend Framework
+
 - **.NET 10.0** - Latest .NET runtime
 - **ASP.NET Core** - Web API framework
 - **C# 13** - Modern language features
@@ -112,6 +119,7 @@ Built on **clean architecture** principles with clear separation of concerns:
 <td>
 
 ### Data & Persistence
+
 - **Entity Framework Core 10.0** - ORM
 - **SQL Server** - Relational database
 - **EF Core Migrations** - Schema versioning
@@ -122,6 +130,7 @@ Built on **clean architecture** principles with clear separation of concerns:
 <td>
 
 ### Security & Auth
+
 - **ASP.NET Core Identity** - User management
 - **JWT Bearer Tokens** - Stateless auth
 - **Refresh Tokens** - Token rotation
@@ -130,6 +139,7 @@ Built on **clean architecture** principles with clear separation of concerns:
 <td>
 
 ### Quality & Tooling
+
 - **FluentValidation** - Input validation
 - **Mapster** - Object mapping
 - **Serilog** - Structured logging
@@ -241,6 +251,7 @@ dotnet watch run --project Warehouse.Api
 **Base URL:** `http://shamtex-warehouse.runasp.net/api`
 
 > 🔒 **Authorization Required:** All endpoints except authentication require a valid JWT token in the `Authorization` header:
+>
 > ```
 > Authorization: Bearer {your-access-token}
 > ```
@@ -367,6 +378,7 @@ Structured logging powered by **Serilog** for comprehensive application monitori
 <td width="50%">
 
 #### 🖥️ Console Sink
+
 - Real-time output for development
 - Colored log levels
 - Detailed exception formatting
@@ -376,6 +388,7 @@ Structured logging powered by **Serilog** for comprehensive application monitori
 <td width="50%">
 
 #### 📁 File Sink (Rolling)
+
 - Daily log file rotation
 - **Location:** `Warehouse.Api/Logs/`
 - **Format:** `warehouse-log-YYYYMMDD.txt`
