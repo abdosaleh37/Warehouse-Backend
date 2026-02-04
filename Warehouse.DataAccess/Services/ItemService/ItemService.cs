@@ -1,8 +1,8 @@
 ﻿using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using OfficeOpenXml;
 using Warehouse.DataAccess.ApplicationDbContext;
+using Warehouse.DataAccess.Services.ExcelExportService;
 using Warehouse.Entities.DTO.Items.Create;
 using Warehouse.Entities.DTO.Items.Delete;
 using Warehouse.Entities.DTO.Items.GetById;
@@ -22,16 +22,19 @@ public class ItemService : IItemService
     private readonly IMapper _mapper;
     private readonly ResponseHandler _responseHandler;
     private readonly ILogger<ItemService> _logger;
+    private readonly IExcelExportService _excelExportService;
 
     public ItemService(WarehouseDbContext context,
         IMapper mapper,
         ResponseHandler responseHandler,
-        ILogger<ItemService> logger)
+        ILogger<ItemService> logger,
+        IExcelExportService excelExportService)
     {
         _context = context;
         _mapper = mapper;
         _responseHandler = responseHandler;
         _logger = logger;
+        _excelExportService = excelExportService;
     }
 
     public async Task<Response<GetItemsOfSectionResponse>> GetItemsofSectionAsync(
@@ -550,142 +553,18 @@ public class ItemService : IItemService
 
         try
         {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-
             var items = await GetItemsWithVouchersDataAsync(userId, request.Year, request.Month, cancellationToken);
 
-            using var package = new ExcelPackage();
-            var worksheet = package.Workbook.Worksheets.Add($"Items_{request.Month:D2}_{request.Year}");
-
-            // Set RTL direction for the worksheet
-            worksheet.View.RightToLeft = true;
-
-            // Header row - Arabic labels
-            worksheet.Cells[1, 1].Value = "كود الصنف";
-            worksheet.Cells[1, 2].Value = "رقم القطعة";
-            worksheet.Cells[1, 3].Value = "الوصف";
-            worksheet.Cells[1, 4].Value = "الوحدة";
-            worksheet.Cells[1, 5].Value = "التصنيف";
-            worksheet.Cells[1, 6].Value = "القسم";
-            worksheet.Cells[1, 7].Value = "كمية الوارد";
-            worksheet.Cells[1, 8].Value = "كمية المنصرف";
-            worksheet.Cells[1, 9].Value = "قيمة الوارد";
-            worksheet.Cells[1, 10].Value = "قيمة المنصرف";
-
-            // Header styling
-            using (var range = worksheet.Cells[1, 1, 1, 10])
-            {
-                range.Style.Font.Bold = true;
-                range.Style.Font.Size = 14;
-                range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
-                range.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
-                range.Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
-                range.Style.Border.Top.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
-                range.Style.Border.Bottom.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
-                range.Style.Border.Left.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
-                range.Style.Border.Right.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
-            }
-
-            // Set header row height
-            worksheet.Row(1).Height = 25;
-
-            // Data rows
-            int row = 2;
-            foreach (var item in items)
-            {
-                worksheet.Cells[row, 1].Value = item.ItemCode;
-                worksheet.Cells[row, 2].Value = item.PartNo ?? "";
-                worksheet.Cells[row, 3].Value = item.Description;
-                worksheet.Cells[row, 4].Value = TranslateUnitToArabic(item.Unit);
-                worksheet.Cells[row, 5].Value = item.CategoryName;
-                worksheet.Cells[row, 6].Value = item.SectionName;
-                worksheet.Cells[row, 7].Value = item.VouchersTotalInQuantity;
-                worksheet.Cells[row, 8].Value = item.VouchersTotalOutQuantity;
-                worksheet.Cells[row, 9].Value = item.VouchersTotalInValue;
-                worksheet.Cells[row, 10].Value = item.VouchersTotalOutValue;
-
-                // Apply styling to data rows
-                using (var range = worksheet.Cells[row, 1, row, 10])
-                {
-                    range.Style.Font.Size = 14;
-                    range.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
-                    range.Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
-                    range.Style.Border.Top.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
-                    range.Style.Border.Bottom.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
-                    range.Style.Border.Left.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
-                    range.Style.Border.Right.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
-                }
-
-                // Set row height
-                worksheet.Row(row).Height = 22;
-
-                row++;
-            }
-
-            // Add totals row if there's data
-            if (row > 2)
-            {
-                worksheet.Cells[row, 1].Value = "الإجمالي";
-                worksheet.Cells[row, 1].Style.Font.Bold = true;
-                worksheet.Cells[row, 7].Formula = $"SUM(G2:G{row - 1})";
-                worksheet.Cells[row, 8].Formula = $"SUM(H2:H{row - 1})";
-                worksheet.Cells[row, 9].Formula = $"SUM(I2:I{row - 1})";
-                worksheet.Cells[row, 10].Formula = $"SUM(J2:J{row - 1})";
-
-                using (var range = worksheet.Cells[row, 1, row, 10])
-                {
-                    range.Style.Font.Bold = true;
-                    range.Style.Font.Size = 13;
-                    range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                    range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightYellow);
-                    range.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
-                    range.Style.Border.Top.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
-                    range.Style.Border.Bottom.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
-                    range.Style.Border.Left.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
-                    range.Style.Border.Right.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
-                }
-
-                // Set totals row height
-                worksheet.Row(row).Height = 22;
-            }
-
-            // Auto-fit columns first
-            if (row > 2)
-            {
-                worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
-            }
-
-            // Set minimum column widths for better readability
-            worksheet.Column(1).Width = Math.Max(worksheet.Column(1).Width, 15); // كود الصنف
-            worksheet.Column(2).Width = Math.Max(worksheet.Column(2).Width, 15); // رقم القطعة
-            worksheet.Column(3).Width = Math.Max(worksheet.Column(3).Width, 30); // الوصف
-            worksheet.Column(4).Width = Math.Max(worksheet.Column(4).Width, 12); // الوحدة
-            worksheet.Column(5).Width = Math.Max(worksheet.Column(5).Width, 18); // التصنيف
-            worksheet.Column(6).Width = Math.Max(worksheet.Column(6).Width, 18); // القسم
-            worksheet.Column(7).Width = Math.Max(worksheet.Column(7).Width, 18); // كمية الوارد
-            worksheet.Column(8).Width = Math.Max(worksheet.Column(8).Width, 18); // كمية المنصرف
-            worksheet.Column(9).Width = Math.Max(worksheet.Column(9).Width, 18); // قيمة الوارد
-            worksheet.Column(10).Width = Math.Max(worksheet.Column(10).Width, 18); // قيمة المنصرف
-
-            // Format number columns with thousand separators
-            for (int i = 2; i < row; i++)
-            {
-                worksheet.Cells[i, 7, i, 8].Style.Numberformat.Format = "#,##0";
-                worksheet.Cells[i, 9, i, 10].Style.Numberformat.Format = "#,##0.00";
-            }
-
-            // Format totals row numbers
-            if (row > 2)
-            {
-                worksheet.Cells[row, 7, row, 8].Style.Numberformat.Format = "#,##0";
-                worksheet.Cells[row, 9, row, 10].Style.Numberformat.Format = "#,##0.00";
-            }
+            var excelData = await _excelExportService.ExportMonthlyItemsToExcelAsync(
+                items,
+                request.Month,
+                request.Year,
+                cancellationToken);
 
             _logger.LogInformation("Excel file generated successfully for month: {Month}, year: {Year} with {ItemCount} items",
                 request.Month, request.Year, items.Count);
 
-            return package.GetAsByteArray();
+            return excelData;
         }
         catch (OperationCanceledException)
         {
@@ -695,6 +574,86 @@ public class ItemService : IItemService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while exporting items to Excel for Month: {Month}, Year: {Year}", request.Month, request.Year);
+            throw;
+        }
+    }
+
+    public async Task<byte[]> ExportAllItemsToExcelAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Exporting all items to Excel for user {UserId}", userId);
+
+        try
+        {
+            // Get all sections with their items for this user
+            var sectionsQuery = _context.Sections
+                .AsNoTracking()
+                .Where(s => s.Category.Warehouse.UserId == userId)
+                .Include(s => s.Items)
+                    .ThenInclude(i => i.ItemVouchers)
+                .Include(s => s.Category)
+                .OrderBy(s => s.Name);
+
+            var sections = await sectionsQuery.ToListAsync(cancellationToken);
+
+            if (sections.Count == 0)
+            {
+                _logger.LogInformation("No sections found for user {UserId}", userId);
+            }
+
+            // Prepare data for Excel export
+            var itemsBySections = new Dictionary<string, List<ItemExportData>>();
+
+            foreach (var section in sections)
+            {
+                // Order items same as GetItemsOfSection
+                var orderedItems = section.Items
+                    .OrderBy(i => i.ItemCode != null ? i.ItemCode.Length : 0)
+                    .ThenBy(i => i.ItemCode)
+                    .ThenBy(i => i.CreatedAt)
+                    .Select(i => new
+                    {
+                        Item = i,
+                        NetQuantity = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => v.InQuantity - v.OutQuantity) : 0
+                    })
+                    .ToList();
+
+                if (orderedItems.Count == 0)
+                {
+                    continue; // Skip sections with no items
+                }
+
+                var exportItems = orderedItems.Select(item => new ItemExportData
+                {
+                    ItemCode = item.Item.ItemCode,
+                    PartNo = item.Item.PartNo,
+                    Description = item.Item.Description,
+                    UnitArabic = TranslateUnitToArabic(item.Item.Unit),
+                    AvailableQuantity = item.Item.OpeningQuantity + item.NetQuantity,
+                    UnitPrice = item.Item.OpeningUnitPrice
+                }).ToList();
+
+                itemsBySections[section.Name] = exportItems;
+            }
+
+            var excelData = await _excelExportService.ExportAllItemsToExcelAsync(
+                itemsBySections,
+                cancellationToken);
+
+            _logger.LogInformation("Excel file generated successfully with {SectionCount} sections for user {UserId}",
+                itemsBySections.Count, userId);
+
+            return excelData;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("ExportAllItemsToExcelAsync cancelled for user {UserId}", userId);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while exporting all items to Excel for user {UserId}", userId);
             throw;
         }
     }
