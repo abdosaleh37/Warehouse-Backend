@@ -629,7 +629,7 @@ public class ItemService : IItemService
                     ItemCode = item.Item.ItemCode,
                     PartNo = item.Item.PartNo,
                     Description = item.Item.Description,
-                    UnitArabic = TranslateUnitToArabic(item.Item.Unit),
+                    Unit = item.Item.Unit,
                     AvailableQuantity = item.Item.OpeningQuantity + item.NetQuantity,
                     UnitPrice = item.Item.OpeningUnitPrice
                 }).ToList();
@@ -656,19 +656,5 @@ public class ItemService : IItemService
             _logger.LogError(ex, "Error occurred while exporting all items to Excel for user {UserId}", userId);
             throw;
         }
-    }
-
-    private static string TranslateUnitToArabic(UnitOfMeasure unit)
-    {
-        return unit switch
-        {
-            UnitOfMeasure.Piece => "عدد",
-            UnitOfMeasure.Kilogram => "كيلوجرام",
-            UnitOfMeasure.Meter => "متر",
-            UnitOfMeasure.Liter => "لتر",
-            UnitOfMeasure.Box => "صندوق",
-            UnitOfMeasure.Carton => "كرتون",
-            _ => unit.ToString()
-        };
     }
 }

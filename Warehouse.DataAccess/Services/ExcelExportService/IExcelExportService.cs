@@ -1,4 +1,5 @@
 ﻿using Warehouse.Entities.DTO.Items.GetItemsWithVouchersOfMonth;
+using Warehouse.Entities.Utilities.Enums;
 
 namespace Warehouse.DataAccess.Services.ExcelExportService;
 
@@ -20,7 +21,7 @@ public class ItemExportData
     public string ItemCode { get; set; } = string.Empty;
     public string? PartNo { get; set; }
     public string Description { get; set; } = string.Empty;
-    public string UnitArabic { get; set; } = string.Empty;
+    public UnitOfMeasure Unit { get; set; }
     public int AvailableQuantity { get; set; }
     public decimal UnitPrice { get; set; }
 }
