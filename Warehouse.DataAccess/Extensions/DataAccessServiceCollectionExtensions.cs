@@ -19,7 +19,9 @@ namespace Warehouse.DataAccess.Extensions;
 
 public static class DataAccessServiceCollectionExtensions
 {
-    public static IServiceCollection AddDataAccessDependencies(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddDataAccessDependencies(
+        this IServiceCollection services, 
+        IConfiguration configuration)
     {
         services
             .AddDatabase(configuration)
@@ -30,7 +32,9 @@ public static class DataAccessServiceCollectionExtensions
         return services;
     }
 
-    private static IServiceCollection AddDatabase(this IServiceCollection services, IConfiguration configuration)
+    private static IServiceCollection AddDatabase(
+        this IServiceCollection services, 
+        IConfiguration configuration)
     {
         var connectionMode = configuration.GetValue<string>("ConnectionMode");
         var connectionString = connectionMode == "Prod"
@@ -52,7 +56,8 @@ public static class DataAccessServiceCollectionExtensions
         return services;
     }
 
-    private static IServiceCollection AddIdentityServices(this IServiceCollection services)
+    private static IServiceCollection AddIdentityServices(
+        this IServiceCollection services)
     {
         services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
         {
@@ -82,7 +87,8 @@ public static class DataAccessServiceCollectionExtensions
         return services;
     }
 
-    private static IServiceCollection AddMapsterConfig(this IServiceCollection services)
+    private static IServiceCollection AddMapsterConfig(
+        this IServiceCollection services)
     {
         var mappingConfig = TypeAdapterConfig.GlobalSettings;
         mappingConfig.Scan(typeof(DataAccessServiceCollectionExtensions).Assembly);
@@ -90,7 +96,8 @@ public static class DataAccessServiceCollectionExtensions
         return services;
     }
 
-    private static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    private static IServiceCollection AddApplicationServices(
+        this IServiceCollection services)
     {
         services.AddScoped<ResponseHandler>();
 

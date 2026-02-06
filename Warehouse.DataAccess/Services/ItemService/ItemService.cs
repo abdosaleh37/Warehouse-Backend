@@ -580,6 +580,7 @@ public class ItemService : IItemService
 
     public async Task<byte[]> ExportAllItemsToExcelAsync(
         Guid userId,
+        Guid? sectionId,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Exporting all items to Excel for user {UserId}", userId);
@@ -589,7 +590,14 @@ public class ItemService : IItemService
             // Get all sections with their items for this user
             var sectionsQuery = _context.Sections
                 .AsNoTracking()
-                .Where(s => s.Category.Warehouse.UserId == userId)
+                .Where(s => s.Category.Warehouse.UserId == userId);
+
+            if (sectionId.HasValue)
+            {
+                sectionsQuery = sectionsQuery.Where(s => s.Id == sectionId.Value);
+            }
+
+            sectionsQuery = sectionsQuery
                 .Include(s => s.Items)
                     .ThenInclude(i => i.ItemVouchers)
                 .Include(s => s.Category)

@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.IdentityModel.Tokens;
 using NSwag;
 using NSwag.Generation.Processors.Security;
@@ -13,7 +14,8 @@ namespace Warehouse.Api.Extensions;
 
 public static class ApiServiceCollectionExtensions
 {
-    public static IServiceCollection AddApiDependencies(this IServiceCollection services,
+    public static IServiceCollection AddApiDependencies(
+        this IServiceCollection services,
        IConfiguration configuration)
     {
         services.AddCors(options =>
@@ -53,7 +55,9 @@ public static class ApiServiceCollectionExtensions
         return services;
     }
 
-    private static IServiceCollection AddAuthConfig(this IServiceCollection services, IConfiguration configuration)
+    private static IServiceCollection AddAuthConfig(
+        this IServiceCollection services, 
+        IConfiguration configuration)
     {
         services.AddAuthentication(opt =>
         {
@@ -89,7 +93,8 @@ public static class ApiServiceCollectionExtensions
         return services;
     }
 
-    private static IServiceCollection AddSwaggerServices(this IServiceCollection services)
+    private static IServiceCollection AddSwaggerServices(
+        this IServiceCollection services)
     {
         services.AddEndpointsApiExplorer();
         services.AddOpenApiDocument(config =>
@@ -120,7 +125,8 @@ public static class ApiServiceCollectionExtensions
         return services;
     }
 
-    private static IServiceCollection AddFluentValidationConfig(this IServiceCollection services)
+    private static IServiceCollection AddFluentValidationConfig(
+        this IServiceCollection services)
     {
         services
            .AddFluentValidationAutoValidation()
@@ -129,9 +135,10 @@ public static class ApiServiceCollectionExtensions
         return services;
     }
 
-    private static IServiceCollection AddRequestSizeLimits(this IServiceCollection services)
+    private static IServiceCollection AddRequestSizeLimits(
+        this IServiceCollection services)
     {
-        services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+        services.Configure<FormOptions>(options =>
         {
             options.MultipartBodyLengthLimit = 10 * 1024 * 1024; // 10 MB
             options.ValueLengthLimit = 10 * 1024 * 1024;

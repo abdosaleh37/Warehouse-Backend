@@ -169,6 +169,7 @@ public class ItemsController : ControllerBase
 
     [HttpGet("export/all-excel")]
     public async Task<IActionResult> ExportAllItemsToExcel(
+        [FromQuery] Guid? sectionId,
         CancellationToken cancellationToken)
     {
         if (!User.TryGetUserId(out Guid userId))
@@ -179,7 +180,7 @@ public class ItemsController : ControllerBase
 
         try
         {
-            var excelData = await _itemService.ExportAllItemsToExcelAsync(userId, cancellationToken);
+            var excelData = await _itemService.ExportAllItemsToExcelAsync(userId, sectionId, cancellationToken);
 
             var fileName = $"AllItems_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
 
