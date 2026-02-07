@@ -454,7 +454,7 @@ public class ItemVoucherService : IItemVoucherService
                 _logger.LogWarning("Some items were not found or do not belong to user {UserId}: {Missing}",
                     userId, string.Join(',', missingItemIds));
                 return _responseHandler.NotFound<CreateVoucherWithManyItemsResponse>(
-                    $"Some items were not found or do not belong to the user: {string.Join(',', missingItemIds)}");
+                    $"Some items were not found or do not belong to the user.");
             }
 
             await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
@@ -474,6 +474,7 @@ public class ItemVoucherService : IItemVoucherService
 
                 var vouchersToCreate = new List<ItemVoucher>();
 
+                int index = 1;
                 foreach (var item in items)
                 {
                     var itemId = item.Key;
@@ -506,7 +507,7 @@ public class ItemVoucherService : IItemVoucherService
                             itemId, userId, projectedAvailableTx, projectedValueTx);
                         await transaction.RollbackAsync(cancellationToken);
                         return _responseHandler.BadRequest<CreateVoucherWithManyItemsResponse>(
-                            $"Insufficient available quantity or value for item {itemId}.");
+                            $"Insufficient available quantity or value for item number {index}.");
                     }
 
                     vouchersToCreate.Add(new ItemVoucher
@@ -519,6 +520,8 @@ public class ItemVoucherService : IItemVoucherService
                         UnitPrice = itemRequest.UnitPrice,
                         Notes = itemRequest.Notes
                     });
+
+                    index++;
                 }
 
                 await _context.ItemVouchers.AddRangeAsync(vouchersToCreate, cancellationToken);
