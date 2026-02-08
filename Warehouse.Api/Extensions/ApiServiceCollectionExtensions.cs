@@ -56,7 +56,7 @@ public static class ApiServiceCollectionExtensions
     }
 
     private static IServiceCollection AddAuthConfig(
-        this IServiceCollection services, 
+        this IServiceCollection services,
         IConfiguration configuration)
     {
         services.AddAuthentication(opt =>

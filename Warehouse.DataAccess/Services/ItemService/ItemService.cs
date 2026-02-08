@@ -12,7 +12,6 @@ using Warehouse.Entities.DTO.Items.Search;
 using Warehouse.Entities.DTO.Items.Update;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.ResponseHandling;
-using Warehouse.Entities.Utilities.Enums;
 
 namespace Warehouse.DataAccess.Services.ItemService;
 

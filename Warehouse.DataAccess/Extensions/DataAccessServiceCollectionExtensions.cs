@@ -20,7 +20,7 @@ namespace Warehouse.DataAccess.Extensions;
 public static class DataAccessServiceCollectionExtensions
 {
     public static IServiceCollection AddDataAccessDependencies(
-        this IServiceCollection services, 
+        this IServiceCollection services,
         IConfiguration configuration)
     {
         services
@@ -33,7 +33,7 @@ public static class DataAccessServiceCollectionExtensions
     }
 
     private static IServiceCollection AddDatabase(
-        this IServiceCollection services, 
+        this IServiceCollection services,
         IConfiguration configuration)
     {
         var connectionMode = configuration.GetValue<string>("ConnectionMode");
