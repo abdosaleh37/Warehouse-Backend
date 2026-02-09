@@ -147,7 +147,11 @@ public class ItemService : IItemService
                     Item = i,
                     SectionName = i.Section.Name,
                     NetQuantity = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => v.InQuantity - v.OutQuantity) : 0,
-                    NetValue = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice) : 0m
+                    NetValue = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice) : 0m,
+                    AllVouchers = i.ItemVouchers!
+                        .OrderBy(v => v.VoucherDate)
+                        .ToList(),
+                    TotalOutQuantity = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => v.OutQuantity) : 0
                 })
                 .FirstOrDefaultAsync(cancellationToken);
 
@@ -164,6 +168,9 @@ public class ItemService : IItemService
             response.OpeningDate = DateTime.SpecifyKind(itemResult.Item.OpeningDate, DateTimeKind.Utc);
             response.CreatedAt = DateTime.SpecifyKind(itemResult.Item.CreatedAt, DateTimeKind.Utc);
 
+            // Calculate next available unit price and quantity using FIFO
+            CalculateNextAvailableValue(response, itemResult.Item, itemResult.AllVouchers, itemResult.TotalOutQuantity);
+
             _logger.LogInformation("Item with Id: {ItemId} retrieved successfully.", request.Id);
             return _responseHandler.Success(response, "Item retrieved successfully.");
         }
@@ -177,6 +184,50 @@ public class ItemService : IItemService
             _logger.LogError(ex, "Error occurred while retrieving item with Id: {ItemId}", request.Id);
             return _responseHandler.InternalServerError<GetItemByIdResponse>("An error occurred while retrieving the item.");
         }
+    }
+
+    private void CalculateNextAvailableValue(
+        GetItemByIdResponse response,
+        Item item,
+        List<ItemVoucher> vouchers,
+        int totalOutQuantity)
+    {
+        if (response.AvailableQuantity <= 0)
+        {
+            response.NextAvailableUnitPrice = 0;
+            response.NextAvailableQuantity = 0;
+            return;
+        }
+
+        var remainingToConsume = totalOutQuantity;
+
+        var openingRemaining = item.OpeningQuantity - remainingToConsume;
+        if (openingRemaining > 0)
+        {
+            response.NextAvailableUnitPrice = item.OpeningUnitPrice;
+            response.NextAvailableQuantity = openingRemaining;
+            return;
+        }
+
+        remainingToConsume -= item.OpeningQuantity;
+
+        foreach (var voucher in vouchers)
+        {
+            if (voucher.InQuantity > 0)
+            {
+                var voucherRemaining = voucher.InQuantity - remainingToConsume;
+                if (voucherRemaining > 0)
+                {
+                    response.NextAvailableUnitPrice = voucher.UnitPrice;
+                    response.NextAvailableQuantity = voucherRemaining;
+                    return;
+                }
+                remainingToConsume -= voucher.InQuantity;
+            }
+        }
+
+        response.NextAvailableUnitPrice = 0;
+        response.NextAvailableQuantity = 0;
     }
 
     public async Task<Response<GetItemsWithVouchersOfMonthResponse>> GetItemsWithVouchersOfMonthAsync(

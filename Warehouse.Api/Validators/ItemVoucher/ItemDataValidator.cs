@@ -16,16 +16,18 @@ namespace Warehouse.Api.Validators.ItemVoucher
             RuleFor(x => x.OutQuantity)
                 .GreaterThanOrEqualTo(0).WithMessage("Out quantity must be greater than or equal to 0.");
 
+            RuleFor(x => x)
+                .Must(x => x.InQuantity > 0 || x.OutQuantity > 0)
+                .WithMessage("Either InQuantity or OutQuantity must be greater than zero.")
+                .Must(x => !(x.InQuantity > 0 && x.OutQuantity > 0))
+                .WithMessage("Cannot have both InQuantity and OutQuantity. Use only one.");
+
             RuleFor(x => x.UnitPrice)
                 .GreaterThanOrEqualTo(0).WithMessage("Unit price must be greater than or equal to 0.");
 
             RuleFor(x => x.Notes)
                 .MaximumLength(500)
                 .When(x => !string.IsNullOrWhiteSpace(x.Notes)).WithMessage("Notes must not exceed 500 characters.");
-
-            RuleFor(x => x)
-                .Must(x => x.InQuantity > 0 || x.OutQuantity > 0)
-                .WithMessage("Either InQuantity or OutQuantity must be greater than zero.");
         }
     }
 }
