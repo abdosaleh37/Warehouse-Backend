@@ -11,6 +11,7 @@ using Warehouse.Entities.DTO.Items.GetItemsWithVouchersOfMonth;
 using Warehouse.Entities.DTO.Items.Search;
 using Warehouse.Entities.DTO.Items.Update;
 using Warehouse.Entities.Entities;
+using Warehouse.Entities.Shared.Helpers;
 using Warehouse.Entities.Shared.ResponseHandling;
 
 namespace Warehouse.DataAccess.Services.ItemService;
@@ -169,7 +170,13 @@ public class ItemService : IItemService
             response.CreatedAt = DateTime.SpecifyKind(itemResult.Item.CreatedAt, DateTimeKind.Utc);
 
             // Calculate next available unit price and quantity using FIFO
-            CalculateNextAvailableValue(response, itemResult.Item, itemResult.AllVouchers, itemResult.TotalOutQuantity);
+            var nextBatch = FifoInventoryHelper.GetNextAvailableBatch(
+                itemResult.Item,
+                itemResult.AllVouchers,
+                itemResult.TotalOutQuantity);
+
+            response.NextAvailableUnitPrice = nextBatch.UnitPrice;
+            response.NextAvailableQuantity = nextBatch.AvailableQuantity;
 
             _logger.LogInformation("Item with Id: {ItemId} retrieved successfully.", request.Id);
             return _responseHandler.Success(response, "Item retrieved successfully.");
@@ -184,50 +191,6 @@ public class ItemService : IItemService
             _logger.LogError(ex, "Error occurred while retrieving item with Id: {ItemId}", request.Id);
             return _responseHandler.InternalServerError<GetItemByIdResponse>("An error occurred while retrieving the item.");
         }
-    }
-
-    private void CalculateNextAvailableValue(
-        GetItemByIdResponse response,
-        Item item,
-        List<ItemVoucher> vouchers,
-        int totalOutQuantity)
-    {
-        if (response.AvailableQuantity <= 0)
-        {
-            response.NextAvailableUnitPrice = 0;
-            response.NextAvailableQuantity = 0;
-            return;
-        }
-
-        var remainingToConsume = totalOutQuantity;
-
-        var openingRemaining = item.OpeningQuantity - remainingToConsume;
-        if (openingRemaining > 0)
-        {
-            response.NextAvailableUnitPrice = item.OpeningUnitPrice;
-            response.NextAvailableQuantity = openingRemaining;
-            return;
-        }
-
-        remainingToConsume -= item.OpeningQuantity;
-
-        foreach (var voucher in vouchers)
-        {
-            if (voucher.InQuantity > 0)
-            {
-                var voucherRemaining = voucher.InQuantity - remainingToConsume;
-                if (voucherRemaining > 0)
-                {
-                    response.NextAvailableUnitPrice = voucher.UnitPrice;
-                    response.NextAvailableQuantity = voucherRemaining;
-                    return;
-                }
-                remainingToConsume -= voucher.InQuantity;
-            }
-        }
-
-        response.NextAvailableUnitPrice = 0;
-        response.NextAvailableQuantity = 0;
     }
 
     public async Task<Response<GetItemsWithVouchersOfMonthResponse>> GetItemsWithVouchersOfMonthAsync(

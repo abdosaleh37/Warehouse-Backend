@@ -9,6 +9,7 @@ using Warehouse.Entities.DTO.Items.GetItemsOfSection;
 using Warehouse.Entities.DTO.Items.GetItemsWithVouchersOfMonth;
 using Warehouse.Entities.DTO.Items.Search;
 using Warehouse.Entities.DTO.Items.Update;
+using Warehouse.Entities.Shared.Helpers;
 using Warehouse.Entities.Shared.ResponseHandling;
 
 namespace Warehouse.Api.Controllers;

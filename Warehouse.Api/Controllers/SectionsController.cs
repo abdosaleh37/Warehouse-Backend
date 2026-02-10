@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Warehouse.DataAccess.Services.SectionService;
@@ -8,6 +8,7 @@ using Warehouse.Entities.DTO.Section.GetAll;
 using Warehouse.Entities.DTO.Section.GetById;
 using Warehouse.Entities.DTO.Section.GetSectionsOfCategory;
 using Warehouse.Entities.DTO.Section.Update;
+using Warehouse.Entities.Shared.Helpers;
 using Warehouse.Entities.Shared.ResponseHandling;
 
 namespace Warehouse.Api.Controllers;

@@ -7,6 +7,7 @@ using Warehouse.Entities.DTO.Category.Delete;
 using Warehouse.Entities.DTO.Category.GetAll;
 using Warehouse.Entities.DTO.Category.GetById;
 using Warehouse.Entities.DTO.Category.Update;
+using Warehouse.Entities.Shared.Helpers;
 using Warehouse.Entities.Shared.ResponseHandling;
 
 namespace Warehouse.Api.Controllers

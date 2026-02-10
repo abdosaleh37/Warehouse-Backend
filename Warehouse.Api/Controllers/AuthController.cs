@@ -1,8 +1,9 @@
-using FluentValidation;
+﻿using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Warehouse.DataAccess.Services.AuthService;
 using Warehouse.Entities.DTO.Auth;
+using Warehouse.Entities.Shared.Helpers;
 using Warehouse.Entities.Shared.ResponseHandling;
 
 namespace Warehouse.Api.Controllers;
