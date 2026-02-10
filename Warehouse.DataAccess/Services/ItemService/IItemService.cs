@@ -53,5 +53,6 @@ public interface IItemService
 
     Task<byte[]> ExportAllItemsToExcelAsync(
         Guid userId,
+        Guid? sectionId,
         CancellationToken cancellationToken = default);
 }

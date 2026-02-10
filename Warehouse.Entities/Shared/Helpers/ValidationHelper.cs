@@ -1,7 +1,7 @@
 ﻿using FluentValidation.Results;
 using System.Security.Claims;
 
-namespace Warehouse.Entities.Shared.ResponseHandling
+namespace Warehouse.Entities.Shared.Helpers
 {
     public static class ValidationHelper
     {

@@ -11,8 +11,8 @@ using Warehouse.Entities.DTO.Items.GetItemsWithVouchersOfMonth;
 using Warehouse.Entities.DTO.Items.Search;
 using Warehouse.Entities.DTO.Items.Update;
 using Warehouse.Entities.Entities;
+using Warehouse.Entities.Shared.Helpers;
 using Warehouse.Entities.Shared.ResponseHandling;
-using Warehouse.Entities.Utilities.Enums;
 
 namespace Warehouse.DataAccess.Services.ItemService;
 
@@ -148,7 +148,11 @@ public class ItemService : IItemService
                     Item = i,
                     SectionName = i.Section.Name,
                     NetQuantity = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => v.InQuantity - v.OutQuantity) : 0,
-                    NetValue = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice) : 0m
+                    NetValue = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => (v.InQuantity - v.OutQuantity) * v.UnitPrice) : 0m,
+                    AllVouchers = i.ItemVouchers!
+                        .OrderBy(v => v.VoucherDate)
+                        .ToList(),
+                    TotalOutQuantity = i.ItemVouchers != null ? i.ItemVouchers.Sum(v => v.OutQuantity) : 0
                 })
                 .FirstOrDefaultAsync(cancellationToken);
 
@@ -164,6 +168,15 @@ public class ItemService : IItemService
             response.AvailableValue = (itemResult.Item.OpeningUnitPrice * itemResult.Item.OpeningQuantity) + itemResult.NetValue;
             response.OpeningDate = DateTime.SpecifyKind(itemResult.Item.OpeningDate, DateTimeKind.Utc);
             response.CreatedAt = DateTime.SpecifyKind(itemResult.Item.CreatedAt, DateTimeKind.Utc);
+
+            // Calculate next available unit price and quantity using FIFO
+            var nextBatch = FifoInventoryHelper.GetNextAvailableBatch(
+                itemResult.Item,
+                itemResult.AllVouchers,
+                itemResult.TotalOutQuantity);
+
+            response.NextAvailableUnitPrice = nextBatch.UnitPrice;
+            response.NextAvailableQuantity = nextBatch.AvailableQuantity;
 
             _logger.LogInformation("Item with Id: {ItemId} retrieved successfully.", request.Id);
             return _responseHandler.Success(response, "Item retrieved successfully.");
@@ -471,6 +484,21 @@ public class ItemService : IItemService
                 }
             }
 
+            var hasVouchers = await _context.ItemVouchers
+                .AsNoTracking()
+                .AnyAsync(iv => iv.ItemId == item.Id, cancellationToken);
+
+            if (hasVouchers)
+            {
+                if (item.OpeningQuantity != request.OpeningQuantity ||
+                    item.OpeningUnitPrice != request.OpeningUnitPrice ||
+                    item.OpeningDate != request.OpeningDate)
+                {
+                    _logger.LogWarning("Attempt to change opening balance for item: {ItemId} which has vouchers. Update rejected.", request.Id);
+                    return _responseHandler.BadRequest<UpdateItemResponse>("Cannot change opening balance for an item that has associated vouchers.");
+                }
+            }
+
             _mapper.Map(request, item);
 
             await _context.SaveChangesAsync(cancellationToken);
@@ -580,6 +608,7 @@ public class ItemService : IItemService
 
     public async Task<byte[]> ExportAllItemsToExcelAsync(
         Guid userId,
+        Guid? sectionId,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Exporting all items to Excel for user {UserId}", userId);
@@ -589,7 +618,14 @@ public class ItemService : IItemService
             // Get all sections with their items for this user
             var sectionsQuery = _context.Sections
                 .AsNoTracking()
-                .Where(s => s.Category.Warehouse.UserId == userId)
+                .Where(s => s.Category.Warehouse.UserId == userId);
+
+            if (sectionId.HasValue)
+            {
+                sectionsQuery = sectionsQuery.Where(s => s.Id == sectionId.Value);
+            }
+
+            sectionsQuery = sectionsQuery
                 .Include(s => s.Items)
                     .ThenInclude(i => i.ItemVouchers)
                 .Include(s => s.Category)

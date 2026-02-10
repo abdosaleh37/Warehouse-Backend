@@ -9,6 +9,7 @@ using Warehouse.Entities.DTO.Items.GetItemsOfSection;
 using Warehouse.Entities.DTO.Items.GetItemsWithVouchersOfMonth;
 using Warehouse.Entities.DTO.Items.Search;
 using Warehouse.Entities.DTO.Items.Update;
+using Warehouse.Entities.Shared.Helpers;
 using Warehouse.Entities.Shared.ResponseHandling;
 
 namespace Warehouse.Api.Controllers;
@@ -169,6 +170,7 @@ public class ItemsController : ControllerBase
 
     [HttpGet("export/all-excel")]
     public async Task<IActionResult> ExportAllItemsToExcel(
+        [FromQuery] Guid? sectionId,
         CancellationToken cancellationToken)
     {
         if (!User.TryGetUserId(out Guid userId))
@@ -179,7 +181,7 @@ public class ItemsController : ControllerBase
 
         try
         {
-            var excelData = await _itemService.ExportAllItemsToExcelAsync(userId, cancellationToken);
+            var excelData = await _itemService.ExportAllItemsToExcelAsync(userId, sectionId, cancellationToken);
 
             var fileName = $"AllItems_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
 

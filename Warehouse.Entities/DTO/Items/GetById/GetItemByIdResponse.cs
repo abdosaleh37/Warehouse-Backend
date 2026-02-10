@@ -18,5 +18,8 @@ namespace Warehouse.Entities.DTO.Items.GetById
 
         public Guid SectionId { get; set; }
         public string SectionName { get; set; } = string.Empty;
+
+        public decimal NextAvailableUnitPrice { get; set; }
+        public int NextAvailableQuantity { get; set; }
     }
 }
