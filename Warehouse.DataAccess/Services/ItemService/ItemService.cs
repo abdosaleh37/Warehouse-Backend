@@ -484,6 +484,21 @@ public class ItemService : IItemService
                 }
             }
 
+            var hasVouchers = await _context.ItemVouchers
+                .AsNoTracking()
+                .AnyAsync(iv => iv.ItemId == item.Id, cancellationToken);
+
+            if (hasVouchers)
+            {
+                if (item.OpeningQuantity != request.OpeningQuantity ||
+                    item.OpeningUnitPrice != request.OpeningUnitPrice ||
+                    item.OpeningDate != request.OpeningDate)
+                {
+                    _logger.LogWarning("Attempt to change opening balance for item: {ItemId} which has vouchers. Update rejected.", request.Id);
+                    return _responseHandler.BadRequest<UpdateItemResponse>("Cannot change opening balance for an item that has associated vouchers.");
+                }
+            }
+
             _mapper.Map(request, item);
 
             await _context.SaveChangesAsync(cancellationToken);
