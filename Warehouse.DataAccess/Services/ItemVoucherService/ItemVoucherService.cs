@@ -3,9 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Data;
 using Warehouse.DataAccess.ApplicationDbContext;
+using Warehouse.DataAccess.Services.ExcelExportService;
 using Warehouse.Entities.DTO.ItemVoucher.Create;
 using Warehouse.Entities.DTO.ItemVoucher.CreateWithManyItems;
 using Warehouse.Entities.DTO.ItemVoucher.Delete;
+using Warehouse.Entities.DTO.ItemVoucher.ExportVouchers;
 using Warehouse.Entities.DTO.ItemVoucher.GetById;
 using Warehouse.Entities.DTO.ItemVoucher.GetMonthlyVouchersOfItem;
 using Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem;
@@ -13,6 +15,7 @@ using Warehouse.Entities.DTO.ItemVoucher.Update;
 using Warehouse.Entities.Entities;
 using Warehouse.Entities.Shared.Helpers;
 using Warehouse.Entities.Shared.ResponseHandling;
+using Warehouse.Entities.Utilities.Enums;
 
 namespace Warehouse.DataAccess.Services.ItemVoucherService;
 
@@ -22,17 +25,20 @@ public class ItemVoucherService : IItemVoucherService
     private readonly ILogger<ItemVoucherService> _logger;
     private readonly WarehouseDbContext _context;
     private readonly ResponseHandler _responseHandler;
+    private readonly IExcelExportService _excelExportService;
 
     public ItemVoucherService(
         IMapper mapper,
         ILogger<ItemVoucherService> logger,
         WarehouseDbContext context,
-        ResponseHandler responseHandler)
+        ResponseHandler responseHandler,
+        IExcelExportService excelExportService)
     {
         _logger = logger;
         _mapper = mapper;
         _context = context;
         _responseHandler = responseHandler;
+        _excelExportService = excelExportService;
     }
 
     public async Task<Response<GetVouchersOfItemResponse>> GetVouchersOfItemAsync(
@@ -871,6 +877,86 @@ public class ItemVoucherService : IItemVoucherService
         {
             _logger.LogError(ex, "Error deleting voucher: {VoucherId} by user {UserId}", request.Id, userId);
             return _responseHandler.InternalServerError<DeleteVoucherResponse>("An error occurred while deleting the voucher.");
+        }
+    }
+
+    public async Task<byte[]> ExportVouchersAsync(
+        Guid userId,
+        ExportVouchersRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Exporting {VoucherType} vouchers for user {UserId}", request.VoucherType, userId);
+
+        try
+        {
+            var query = _context.ItemVouchers
+                .AsNoTracking()
+                .Include(v => v.Item)
+                    .ThenInclude(i => i.Section)
+                .Where(v => v.Item.Section.Category.Warehouse.UserId == userId);
+
+            if (request.VoucherType == VoucherType.In)
+            {
+                query = query.Where(v => v.InQuantity > 0);
+            }
+            else
+            {
+                query = query.Where(v => v.OutQuantity > 0);
+            }
+
+            if (request.Month.HasValue && request.Year.HasValue)
+            {
+                var startDate = new DateTime(request.Year.Value, request.Month.Value, 1);
+                var endDate = startDate.AddMonths(1);
+                query = query.Where(v => v.VoucherDate >= startDate && v.VoucherDate < endDate);
+            }
+
+            var vouchers = await query
+                .OrderBy(v => v.VoucherDate)
+                    .ThenBy(v => v.VoucherCode)
+                .ToListAsync(cancellationToken);
+
+            if (vouchers.Count == 0)
+            {
+                _logger.LogInformation("No vouchers found for export");
+                throw new InvalidOperationException("No vouchers found matching the criteria");
+            }
+
+            // Group vouchers by voucher code
+            var voucherGroups = vouchers
+                .GroupBy(v => v.VoucherCode)
+                .Select(g => new VoucherExportData
+                {
+                    VoucherCode = g.Key,
+                    VoucherDate = g.First().VoucherDate,
+                    Items = g.Select(v => new VoucherItemData
+                    {
+                        ItemPartNo = v.Item.PartNo ?? v.Item.ItemCode,
+                        Description = v.Item.Description,
+                        Quantity = request.VoucherType == VoucherType.In ? v.InQuantity : v.OutQuantity,
+                        Unit = v.Item.Unit,
+                        SectionName = v.Item.Section.Name
+                    }).ToList()
+                })
+                .ToList();
+
+            var excelBytes = await _excelExportService.ExportVouchersToExcelAsync(
+                voucherGroups,
+                request.VoucherType,
+                cancellationToken);
+
+            _logger.LogInformation("Successfully exported {VoucherCount} vouchers to Excel", voucherGroups.Count);
+            return excelBytes;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("ExportVouchersAsync cancelled for user {UserId}", userId);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting vouchers for user {UserId}", userId);
+            throw;
         }
     }
 }

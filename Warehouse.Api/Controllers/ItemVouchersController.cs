@@ -5,6 +5,7 @@ using Warehouse.DataAccess.Services.ItemVoucherService;
 using Warehouse.Entities.DTO.ItemVoucher.Create;
 using Warehouse.Entities.DTO.ItemVoucher.CreateWithManyItems;
 using Warehouse.Entities.DTO.ItemVoucher.Delete;
+using Warehouse.Entities.DTO.ItemVoucher.ExportVouchers;
 using Warehouse.Entities.DTO.ItemVoucher.GetById;
 using Warehouse.Entities.DTO.ItemVoucher.GetMonthlyVouchersOfItem;
 using Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem;
@@ -29,6 +30,7 @@ public class ItemVouchersController : ControllerBase
     private readonly IValidator<CreateVoucherWithManyItemsRequest> _createVoucherWithManyItemsValidator;
     private readonly IValidator<UpdateVoucherRequest> _updateVoucherValidator;
     private readonly IValidator<DeleteVoucherRequest> _deleteteVoucherValidator;
+    private readonly IValidator<ExportVouchersRequest> _exportVouchersValidator;
 
     public ItemVouchersController(
         ResponseHandler responseHandler,
@@ -40,7 +42,8 @@ public class ItemVouchersController : ControllerBase
         IValidator<CreateVoucherRequest> createVoucherValidator,
         IValidator<CreateVoucherWithManyItemsRequest> createVoucherWithManyItemsValidator,
         IValidator<UpdateVoucherRequest> updateVoucherValidator,
-        IValidator<DeleteVoucherRequest> deleteteVoucherValidator)
+        IValidator<DeleteVoucherRequest> deleteteVoucherValidator,
+        IValidator<ExportVouchersRequest> exportVouchersValidator)
     {
         _responseHandler = responseHandler;
         _logger = logger;
@@ -52,6 +55,7 @@ public class ItemVouchersController : ControllerBase
         _createVoucherWithManyItemsValidator = createVoucherWithManyItemsValidator;
         _updateVoucherValidator = updateVoucherValidator;
         _deleteteVoucherValidator = deleteteVoucherValidator;
+        _exportVouchersValidator = exportVouchersValidator;
     }
 
     [HttpGet("item/{id:guid}")]
@@ -226,5 +230,50 @@ public class ItemVouchersController : ControllerBase
 
         var response = await _itemVoucherService.DeleteVoucherAsync(userId, request, cancellationToken);
         return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpPost("export")]
+    [Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
+    public async Task<IActionResult> ExportVouchers(
+        [FromBody] ExportVouchersRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out Guid userId))
+        {
+            return StatusCode((int)_responseHandler.Unauthorized<object>("Invalid user").StatusCode,
+                _responseHandler.Unauthorized<object>("Invalid user"));
+        }
+
+        var validationResult = await _exportVouchersValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            string errors = validationResult.Errors.FlattenErrors();
+            _logger.LogWarning("Invalid export vouchers request: {Errors}", errors);
+            return StatusCode((int)_responseHandler.BadRequest<object>(errors).StatusCode,
+                _responseHandler.BadRequest<object>(errors));
+        }
+
+        try
+        {
+            var excelBytes = await _itemVoucherService.ExportVouchersAsync(userId, request, cancellationToken);
+
+            var fileName = request.Month.HasValue && request.Year.HasValue
+                ? $"Vouchers_{request.VoucherType}_{request.Year}_{request.Month:D2}.xlsx"
+                : $"Vouchers_{request.VoucherType}_All.xlsx";
+
+            return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "No vouchers found for export");
+            return StatusCode((int)_responseHandler.NotFound<object>(ex.Message).StatusCode,
+                _responseHandler.NotFound<object>(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting vouchers");
+            return StatusCode((int)_responseHandler.InternalServerError<object>("An error occurred while exporting vouchers").StatusCode,
+                _responseHandler.InternalServerError<object>("An error occurred while exporting vouchers"));
+        }
     }
 }

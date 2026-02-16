@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using OfficeOpenXml;
+using Warehouse.Entities.DTO.Items.Export;
 using Warehouse.Entities.DTO.Items.GetItemsWithVouchersOfMonth;
+using Warehouse.Entities.DTO.ItemVoucher.ExportVouchers;
 using Warehouse.Entities.Utilities.Enums;
 
 namespace Warehouse.DataAccess.Services.ExcelExportService;
@@ -48,7 +50,7 @@ public class ExcelExportService : IExcelExportService
             using (var range = worksheet.Cells[1, 1, 1, 10])
             {
                 range.Style.Font.Bold = true;
-                range.Style.Font.Size = 14;
+                range.Style.Font.Size = 16;
                 range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
                 range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
                 range.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
@@ -60,7 +62,7 @@ public class ExcelExportService : IExcelExportService
             }
 
             // Set header row height
-            worksheet.Row(1).Height = 25;
+            worksheet.Row(1).Height = 30;
 
             // Data rows
             int row = 2;
@@ -288,7 +290,8 @@ public class ExcelExportService : IExcelExportService
                 }
             }
 
-            _logger.LogInformation("Excel file generated successfully with {SectionCount} sections", package.Workbook.Worksheets.Count);
+            _logger.LogInformation("Excel file generated successfully with {SectionCount} sections", 
+                package.Workbook.Worksheets.Count);
 
             return Task.FromResult(package.GetAsByteArray());
         }
@@ -301,8 +304,6 @@ public class ExcelExportService : IExcelExportService
 
     private static string SanitizeSheetName(string name)
     {
-        // Excel sheet names cannot contain: \ / ? * [ ]
-        // and must be 31 characters or less
         var invalidChars = new[] { '\\', '/', '?', '*', '[', ']', ':' };
         var sanitized = name;
         foreach (var c in invalidChars)
@@ -330,5 +331,173 @@ public class ExcelExportService : IExcelExportService
             UnitOfMeasure.Carton => "كرتون",
             _ => unit.ToString()
         };
+    }
+
+    public Task<byte[]> ExportVouchersToExcelAsync(
+        List<VoucherExportData> vouchers,
+        VoucherType voucherType,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Generating Excel file for {VoucherType} vouchers with {VoucherCount} vouchers",
+            voucherType, vouchers.Count);
+
+        try
+        {
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+            using var package = new ExcelPackage();
+
+            // Group vouchers by voucher code
+            var vouchersByCode = vouchers
+                .OrderBy(v => v.VoucherCode.Length)
+                    .ThenBy(v => v.VoucherCode)
+                .ToList();
+
+            string titlePrefix = voucherType == VoucherType.In ? "إذن وارد" : "إذن صرف مادة";
+
+            foreach (var voucher in vouchersByCode)
+            {
+                // Use voucher code as sheet name
+                var sheetName = SanitizeSheetName(voucher.VoucherCode);
+                var worksheet = package.Workbook.Worksheets.Add(sheetName);
+
+                // Set RTL direction for the worksheet
+                worksheet.View.RightToLeft = true;
+
+                int currentRow = 1;
+
+                // Right section - Date
+                worksheet.Cells[currentRow, 1, currentRow, 2].Merge = true;
+                worksheet.Cells[currentRow, 1].Value = $"التاريخ: {voucher.VoucherDate:dd/MM/yyyy}";
+                worksheet.Cells[currentRow, 1].Style.Font.Bold = true;
+                worksheet.Cells[currentRow, 1].Style.Font.Size = 14;
+                worksheet.Cells[currentRow, 1].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                worksheet.Cells[currentRow, 1].Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
+
+                // Center section - Title
+                worksheet.Cells[currentRow, 3, currentRow, 4].Merge = true;
+                worksheet.Cells[currentRow, 3].Value = titlePrefix;
+                worksheet.Cells[currentRow, 3].Style.Font.Bold = true;
+                worksheet.Cells[currentRow, 3].Style.Font.Size = 14;
+                worksheet.Cells[currentRow, 3].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                worksheet.Cells[currentRow, 3].Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
+
+                // Left section - Voucher Number
+                worksheet.Cells[currentRow, 5, currentRow, 6].Merge = true;
+                worksheet.Cells[currentRow, 5].Value = $"رقم: {voucher.VoucherCode}";
+                worksheet.Cells[currentRow, 5].Style.Font.Bold = true;
+                worksheet.Cells[currentRow, 5].Style.Font.Size = 14;
+                worksheet.Cells[currentRow, 5].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                worksheet.Cells[currentRow, 5].Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
+
+                worksheet.Row(currentRow).Height = 25;
+                currentRow++;
+
+                // Table header row with merged quantity column
+                // م
+                worksheet.Cells[currentRow, 1, currentRow + 1, 1].Merge = true;
+                worksheet.Cells[currentRow, 1].Value = "م";
+
+                // كود المادة
+                worksheet.Cells[currentRow, 2, currentRow + 1, 2].Merge = true;
+                worksheet.Cells[currentRow, 2].Value = "كود المادة";
+
+                // اسم المادة ومواصفاتها
+                worksheet.Cells[currentRow, 3, currentRow + 1, 3].Merge = true;
+                worksheet.Cells[currentRow, 3].Value = "اسم المادة ومواصفاتها";
+
+                // الكمية - merged header
+                worksheet.Cells[currentRow, 4, currentRow, 5].Merge = true;
+                worksheet.Cells[currentRow, 4].Value = "الكمية";
+
+                // الشعبة
+                worksheet.Cells[currentRow, 6, currentRow + 1, 6].Merge = true;
+                worksheet.Cells[currentRow, 6].Value = "الشعبة";
+
+                // Sub-headers for quantity
+                worksheet.Cells[currentRow + 1, 4].Value = "العدد";
+                worksheet.Cells[currentRow + 1, 5].Value = "الوحدة";
+
+                // Apply styling to header rows
+                using (var range = worksheet.Cells[currentRow, 1, currentRow + 1, 6])
+                {
+                    range.Style.Font.Bold = true;
+                    range.Style.Font.Size = 12;
+                    range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                    range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
+                    range.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                    range.Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
+                    range.Style.Border.Top.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                    range.Style.Border.Bottom.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                    range.Style.Border.Left.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                    range.Style.Border.Right.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                }
+
+                worksheet.Row(currentRow).Height = 22;
+                worksheet.Row(currentRow + 1).Height = 22;
+                currentRow += 2;
+
+                // Data rows
+                int itemNumber = 1;
+                foreach (var item in voucher.Items)
+                {
+                    worksheet.Cells[currentRow, 1].Value = itemNumber;
+                    worksheet.Cells[currentRow, 2].Value = item.ItemPartNo;
+                    worksheet.Cells[currentRow, 3].Value = item.Description;
+                    worksheet.Cells[currentRow, 4].Value = item.Quantity;
+                    worksheet.Cells[currentRow, 5].Value = TranslateUnitToArabic(item.Unit);
+                    worksheet.Cells[currentRow, 6].Value = item.SectionName;
+
+                    // Apply styling to data rows - with bold font
+                    using (var range = worksheet.Cells[currentRow, 1, currentRow, 6])
+                    {
+                        range.Style.Font.Bold = true;
+                        range.Style.Font.Size = 11;
+                        range.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                        range.Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
+                        range.Style.Border.Top.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                        range.Style.Border.Bottom.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                        range.Style.Border.Left.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                        range.Style.Border.Right.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                    }
+
+                    worksheet.Row(currentRow).Height = 25;
+                    currentRow++;
+                    itemNumber++;
+                }
+
+                // Set column widths
+                worksheet.Column(1).Width = 8;  // م
+                worksheet.Column(2).Width = 20; // كود المادة
+                worksheet.Column(3).Width = 40; // اسم المادة ومواصفاتها
+                worksheet.Column(4).Width = 12; // العدد
+                worksheet.Column(5).Width = 12; // الوحدة
+                worksheet.Column(6).Width = 18; // الشعبة
+
+                // Configure page setup for A4 printing
+                worksheet.PrinterSettings.PaperSize = ePaperSize.A4;
+                worksheet.PrinterSettings.Orientation = eOrientation.Portrait;
+                worksheet.PrinterSettings.FitToPage = true;
+                worksheet.PrinterSettings.FitToWidth = 1;
+                worksheet.PrinterSettings.FitToHeight = 0;
+                worksheet.PrinterSettings.LeftMargin = 0.5M;
+                worksheet.PrinterSettings.RightMargin = 0.5M;
+                worksheet.PrinterSettings.TopMargin = 0.75M;
+                worksheet.PrinterSettings.BottomMargin = 0.75M;
+                worksheet.PrinterSettings.HeaderMargin = 0.3M;
+                worksheet.PrinterSettings.FooterMargin = 0.3M;
+                worksheet.PrinterSettings.HorizontalCentered = true;
+            }
+
+            _logger.LogInformation("Excel file generated successfully with {SheetCount} sheets",
+                package.Workbook.Worksheets.Count);
+
+            return Task.FromResult(package.GetAsByteArray());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while generating vouchers Excel file");
+            throw;
+        }
     }
 }
