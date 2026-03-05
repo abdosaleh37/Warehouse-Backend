@@ -94,6 +94,12 @@ Built on **clean architecture** principles with clear separation of concerns:
 - **Item Vouchers & Movements**
   - Track item movements and transactions
   - Maintain audit trails for item activity
+  - **Export daily vouchers to Excel** with support for:
+    - Monthly or all-time voucher exports
+    - Input and Output voucher types
+    - Multi-page Excel workbooks (one worksheet per voucher)
+    - Professional print-ready formatting with Arabic RTL support
+    - Detailed item information including codes, descriptions, quantities, and sections
 
 ### 🛡️ Reliability & Engineering Features
 
@@ -144,6 +150,7 @@ Built on **clean architecture** principles with clear separation of concerns:
 - **Mapster** - Object mapping
 - **Serilog** - Structured logging
 - **NSwag** - OpenAPI/Swagger
+- **EPPlus** - Excel generation with RTL support
 
 </td>
 </tr>
