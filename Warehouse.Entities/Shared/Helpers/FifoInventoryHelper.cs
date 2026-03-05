@@ -13,11 +13,42 @@ public static class FifoInventoryHelper
         var openingRemaining = item.OpeningQuantity - remainingToConsume;
         if (openingRemaining > 0)
         {
-            return new FifoBatch(item.OpeningUnitPrice, openingRemaining);
+            // Found available quantity in opening - check if next vouchers have same price
+            var cumulativeQuantity = openingRemaining;
+            var nextPrice = item.OpeningUnitPrice;
+            
+            remainingToConsume = 0; // Opening is not fully consumed
+            
+            // Check consecutive vouchers with same price
+            foreach (var voucher in vouchers)
+            {
+                if (voucher.InQuantity > 0)
+                {
+                    var voucherRemaining = voucher.InQuantity - remainingToConsume;
+                    if (voucherRemaining > 0 && voucher.UnitPrice == nextPrice)
+                    {
+                        // Same price - accumulate quantity
+                        cumulativeQuantity += voucherRemaining;
+                        remainingToConsume = 0;
+                    }
+                    else if (voucherRemaining > 0)
+                    {
+                        // Different price - stop accumulating
+                        break;
+                    }
+                    else
+                    {
+                        remainingToConsume -= voucher.InQuantity;
+                    }
+                }
+            }
+            
+            return new FifoBatch(nextPrice, cumulativeQuantity);
         }
 
         remainingToConsume -= item.OpeningQuantity;
 
+        // Opening is fully consumed - find first available voucher
         foreach (var voucher in vouchers)
         {
             if (voucher.InQuantity > 0)
@@ -25,7 +56,43 @@ public static class FifoInventoryHelper
                 var voucherRemaining = voucher.InQuantity - remainingToConsume;
                 if (voucherRemaining > 0)
                 {
-                    return new FifoBatch(voucher.UnitPrice, voucherRemaining);
+                    // Found first available batch - accumulate consecutive batches with same price
+                    var cumulativeQuantity = voucherRemaining;
+                    var nextPrice = voucher.UnitPrice;
+                    
+                    var foundFirst = false;
+                    var tempRemaining = 0;
+                    
+                    foreach (var nextVoucher in vouchers)
+                    {
+                        if (nextVoucher == voucher)
+                        {
+                            foundFirst = true;
+                            continue;
+                        }
+                        
+                        if (foundFirst && nextVoucher.InQuantity > 0)
+                        {
+                            var nextVoucherRemaining = nextVoucher.InQuantity - tempRemaining;
+                            if (nextVoucherRemaining > 0 && nextVoucher.UnitPrice == nextPrice)
+                            {
+                                // Same price - accumulate quantity
+                                cumulativeQuantity += nextVoucherRemaining;
+                                tempRemaining = 0;
+                            }
+                            else if (nextVoucherRemaining > 0)
+                            {
+                                // Different price - stop accumulating
+                                break;
+                            }
+                            else
+                            {
+                                tempRemaining -= nextVoucher.InQuantity;
+                            }
+                        }
+                    }
+                    
+                    return new FifoBatch(nextPrice, cumulativeQuantity);
                 }
                 remainingToConsume -= voucher.InQuantity;
             }
@@ -72,7 +139,24 @@ public static class FifoInventoryHelper
             }
         }
 
-        return batches;
+        // Merge consecutive batches with the same price
+        var mergedBatches = new List<FifoBatch>();
+        foreach (var batch in batches)
+        {
+            if (mergedBatches.Count > 0 && mergedBatches[^1].UnitPrice == batch.UnitPrice)
+            {
+                // Same price as previous batch - merge quantities
+                var lastBatch = mergedBatches[^1];
+                mergedBatches[^1] = new FifoBatch(lastBatch.UnitPrice, lastBatch.AvailableQuantity + batch.AvailableQuantity);
+            }
+            else
+            {
+                // Different price - add as new batch
+                mergedBatches.Add(batch);
+            }
+        }
+
+        return mergedBatches;
     }
 
     public static int GetAvailableQuantity(Item item, List<ItemVoucher> vouchers)

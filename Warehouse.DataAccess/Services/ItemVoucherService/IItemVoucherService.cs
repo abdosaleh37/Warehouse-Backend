@@ -1,6 +1,7 @@
 ﻿using Warehouse.Entities.DTO.ItemVoucher.Create;
 using Warehouse.Entities.DTO.ItemVoucher.CreateWithManyItems;
 using Warehouse.Entities.DTO.ItemVoucher.Delete;
+using Warehouse.Entities.DTO.ItemVoucher.ExportVouchers;
 using Warehouse.Entities.DTO.ItemVoucher.GetById;
 using Warehouse.Entities.DTO.ItemVoucher.GetMonthlyVouchersOfItem;
 using Warehouse.Entities.DTO.ItemVoucher.GetVouchersOfItem;
@@ -44,5 +45,10 @@ public interface IItemVoucherService
     Task<Response<DeleteVoucherResponse>> DeleteVoucherAsync(
         Guid userId,
         DeleteVoucherRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<byte[]> ExportVouchersAsync(
+        Guid userId,
+        ExportVouchersRequest request,
         CancellationToken cancellationToken = default);
 }

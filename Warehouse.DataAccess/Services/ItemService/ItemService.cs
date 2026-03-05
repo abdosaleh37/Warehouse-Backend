@@ -5,6 +5,7 @@ using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.DataAccess.Services.ExcelExportService;
 using Warehouse.Entities.DTO.Items.Create;
 using Warehouse.Entities.DTO.Items.Delete;
+using Warehouse.Entities.DTO.Items.Export;
 using Warehouse.Entities.DTO.Items.GetById;
 using Warehouse.Entities.DTO.Items.GetItemsOfSection;
 using Warehouse.Entities.DTO.Items.GetItemsWithVouchersOfMonth;
