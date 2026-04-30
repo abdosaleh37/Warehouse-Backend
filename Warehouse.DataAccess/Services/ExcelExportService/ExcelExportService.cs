@@ -480,12 +480,12 @@ public class ExcelExportService : IExcelExportService
                 worksheet.PrinterSettings.FitToPage = true;
                 worksheet.PrinterSettings.FitToWidth = 1;
                 worksheet.PrinterSettings.FitToHeight = 0;
-                worksheet.PrinterSettings.LeftMargin = 0.5M;
-                worksheet.PrinterSettings.RightMargin = 0.5M;
-                worksheet.PrinterSettings.TopMargin = 0.75M;
-                worksheet.PrinterSettings.BottomMargin = 0.75M;
-                worksheet.PrinterSettings.HeaderMargin = 0.3M;
-                worksheet.PrinterSettings.FooterMargin = 0.3M;
+                worksheet.PrinterSettings.LeftMargin = 0.5;
+                worksheet.PrinterSettings.RightMargin = 0.5;
+                worksheet.PrinterSettings.TopMargin = 0.75;
+                worksheet.PrinterSettings.BottomMargin = 0.75;
+                worksheet.PrinterSettings.HeaderMargin = 0.3;
+                worksheet.PrinterSettings.FooterMargin = 0.3;
                 worksheet.PrinterSettings.HorizontalCentered = true;
             }
 

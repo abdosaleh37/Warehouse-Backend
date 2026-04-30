@@ -23,6 +23,12 @@ public class Program
 
             var builder = WebApplication.CreateBuilder(args);
 
+            if (builder.Environment.IsProduction())
+            {
+                var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
+                builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+            }
+
             // Add Serilog
             builder.Host.UseSerilog();
 
@@ -34,6 +40,7 @@ public class Program
 
             // Add health checks
             builder.Services.AddHealthChecks();
+
 
             var app = builder.Build();
 
