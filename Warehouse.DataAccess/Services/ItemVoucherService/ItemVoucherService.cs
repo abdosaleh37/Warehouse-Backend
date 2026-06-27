@@ -65,7 +65,8 @@ public class ItemVoucherService : IItemVoucherService
                 .AsNoTracking()
                 .Where(iv => iv.ItemId == request.ItemId)
                 .OrderBy(iv => iv.VoucherDate)
-                    .ThenBy(iv => iv.VoucherCode)
+                    .ThenBy(iv => iv.VoucherCode.Length)
+                        .ThenBy(iv => iv.VoucherCode)
                 .ToListAsync(cancellationToken);
 
             if (vouchers.Count == 0)
@@ -354,30 +355,45 @@ public class ItemVoucherService : IItemVoucherService
                 return _responseHandler.NotFound<CreateVoucherResponse>("Item not found.");
             }
 
-            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+            await using var transaction = await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable, cancellationToken);
             try
             {
                 var existingVouchers = await _context.ItemVouchers
                     .Where(iv => iv.ItemId == item.Id)
-                    .OrderBy(iv => iv.VoucherDate)
                     .ToListAsync(cancellationToken);
-
-                var totalOutQuantity = existingVouchers.Sum(v => v.OutQuantity);
-                var availableQuantity = FifoInventoryHelper.GetAvailableQuantity(item, existingVouchers);
 
                 if (request.InQuantity > 0)
                 {
-                    var voucherEntity = _mapper.Map<ItemVoucher>(request);
-                    await _context.ItemVouchers.AddAsync(voucherEntity, cancellationToken);
+                    var newVoucher = _mapper.Map<ItemVoucher>(request);
+                    newVoucher.Id = Guid.NewGuid();
+
+                    var orderedWithNew = FifoConsistencyHelper.OrderChronologically(
+                        existingVouchers.Append(newVoucher));
+
+                    await _context.ItemVouchers.AddAsync(newVoucher, cancellationToken);
+
+                    var inCutoffIndex = FifoConsistencyHelper.FindCutoffIndex(orderedWithNew, newVoucher);
+                    var (inToRemove, inToAdd) = FifoConsistencyHelper.RecostFrom(item, orderedWithNew, inCutoffIndex);
+
+                    _context.ItemVouchers.RemoveRange(inToRemove);
+                    await _context.ItemVouchers.AddRangeAsync(inToAdd, cancellationToken);
+
                     await _context.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync(cancellationToken);
 
-                    var response = _mapper.Map<CreateVoucherResponse>(voucherEntity);
+                    var response = _mapper.Map<CreateVoucherResponse>(newVoucher);
                     response.VoucherDate = DateTime.SpecifyKind(response.VoucherDate, DateTimeKind.Utc);
 
-                    _logger.LogInformation("Created IN voucher {VoucherId} for item {ItemId}", voucherEntity.Id, request.ItemId);
+                    _logger.LogInformation(
+                        "Created IN voucher {VoucherId} for item {ItemId}. Recosted {RecostCount} downstream OUT voucher(s).",
+                        newVoucher.Id, request.ItemId, inToRemove.Count);
                     return _responseHandler.Success(response, "Voucher created successfully.");
                 }
+
+                // OUT voucher path.
+                var totalOutQuantity = existingVouchers.Sum(v => v.OutQuantity);
+                var availableQuantity = FifoInventoryHelper.GetAvailableQuantity(item, existingVouchers);
 
                 if (request.OutQuantity > availableQuantity)
                 {
@@ -388,11 +404,31 @@ public class ItemVoucherService : IItemVoucherService
                         $"Insufficient quantity. Available: {availableQuantity}, Requested: {request.OutQuantity}");
                 }
 
+                var prospectiveOut = new ItemVoucher
+                {
+                    Id = Guid.NewGuid(),
+                    VoucherCode = request.VoucherCode,
+                    VoucherDate = request.VoucherDate,
+                    ItemId = request.ItemId,
+                    InQuantity = 0,
+                    OutQuantity = request.OutQuantity,
+                    UnitPrice = 0,
+                    Notes = request.Notes
+                };
+
+                var orderedWithProspectiveOut = FifoConsistencyHelper.OrderChronologically(
+                    existingVouchers.Append(prospectiveOut));
+
+                if (FifoConsistencyHelper.WouldCauseNegativeBalance(item, orderedWithProspectiveOut))
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return _responseHandler.BadRequest<CreateVoucherResponse>(
+                        "This voucher would result in a negative inventory balance at some point in the item's history. " +
+                        "Check the voucher date against existing vouchers.");
+                }
+
                 var batches = FifoInventoryHelper.GetBatchesForOutQuantity(
-                    item,
-                    existingVouchers,
-                    totalOutQuantity,
-                    request.OutQuantity);
+                    item, existingVouchers, totalOutQuantity, request.OutQuantity);
 
                 if (batches.Count == 0)
                 {
@@ -406,10 +442,9 @@ public class ItemVoucherService : IItemVoucherService
                 for (int batchIndex = 0; batchIndex < batches.Count; batchIndex++)
                 {
                     var batch = batches[batchIndex];
-                    // Add microsecond offset to maintain FIFO order when querying from database
                     var voucherDate = request.VoucherDate.AddMicroseconds(batchIndex);
 
-                    var voucherEntity = new ItemVoucher
+                    createdVouchers.Add(new ItemVoucher
                     {
                         Id = Guid.NewGuid(),
                         VoucherCode = request.VoucherCode,
@@ -419,12 +454,21 @@ public class ItemVoucherService : IItemVoucherService
                         OutQuantity = batch.AvailableQuantity,
                         UnitPrice = batch.UnitPrice,
                         Notes = request.Notes
-                    };
-
-                    createdVouchers.Add(voucherEntity);
+                    });
                 }
 
                 await _context.ItemVouchers.AddRangeAsync(createdVouchers, cancellationToken);
+
+                var orderedWithNewOut = FifoConsistencyHelper.OrderChronologically(
+                    existingVouchers.Concat(createdVouchers));
+
+                var outCutoffIndex = orderedWithNewOut.FindIndex(v => v.Id == createdVouchers[0].Id);
+                var (outToRemove, outToAdd) = FifoConsistencyHelper.RecostFrom(
+                    item, orderedWithNewOut, outCutoffIndex + createdVouchers.Count);
+
+                _context.ItemVouchers.RemoveRange(outToRemove);
+                await _context.ItemVouchers.AddRangeAsync(outToAdd, cancellationToken);
+
                 await _context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
@@ -491,13 +535,13 @@ public class ItemVoucherService : IItemVoucherService
                     $"Some items were not found or do not belong to the user.");
             }
 
-            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+            await using var transaction = await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable, cancellationToken);
             try
             {
                 // Get all existing vouchers for all items
                 var existingVouchersDict = await _context.ItemVouchers
                     .Where(iv => itemIds.Contains(iv.ItemId))
-                    .OrderBy(iv => iv.VoucherDate)
                     .ToListAsync(cancellationToken);
 
                 var vouchersByItem = existingVouchersDict
@@ -524,7 +568,7 @@ public class ItemVoucherService : IItemVoucherService
                     // Handle IN voucher - use price from request
                     if (itemRequest.InQuantity > 0)
                     {
-                        vouchersToCreate.Add(new ItemVoucher
+                        var newVoucher = new ItemVoucher
                         {
                             Id = Guid.NewGuid(),
                             VoucherCode = request.VoucherCode,
@@ -534,7 +578,23 @@ public class ItemVoucherService : IItemVoucherService
                             OutQuantity = 0,
                             UnitPrice = itemRequest.UnitPrice,
                             Notes = itemRequest.Notes
-                        });
+                        };
+
+                        var orderedWithNew = FifoConsistencyHelper.OrderChronologically(
+                            existingVouchers.Append(newVoucher));
+
+                        vouchersToCreate.Add(newVoucher);
+
+                        var cutoffIndex = FifoConsistencyHelper.FindCutoffIndex(orderedWithNew, newVoucher);
+                        var (toRemove, toAdd) = FifoConsistencyHelper.RecostFrom(itemEntity, orderedWithNew, cutoffIndex);
+
+                        _context.ItemVouchers.RemoveRange(toRemove);
+                        vouchersToCreate.AddRange(toAdd);
+
+                        if (toRemove.Count > 0)
+                        {
+                            splitInfo.Add($"Item {index}: recosted {toRemove.Count} downstream OUT voucher(s)");
+                        }
                     }
                     // Handle OUT voucher - use FIFO prices and split
                     else if (itemRequest.OutQuantity > 0)
@@ -548,12 +608,35 @@ public class ItemVoucherService : IItemVoucherService
                                 $"Insufficient quantity for item number {index}. Available: {availableQuantity}, Requested: {itemRequest.OutQuantity}");
                         }
 
+                        var prospectiveOut = new ItemVoucher
+                        {
+                            Id = Guid.NewGuid(),
+                            VoucherCode = request.VoucherCode,
+                            VoucherDate = request.VoucherDate,
+                            ItemId = itemId,
+                            InQuantity = 0,
+                            OutQuantity = itemRequest.OutQuantity,
+                            UnitPrice = 0,
+                            Notes = itemRequest.Notes
+                        };
+
+                        var orderedWithProspectiveOut = FifoConsistencyHelper.OrderChronologically(
+                            existingVouchers.Append(prospectiveOut));
+
+                        if (FifoConsistencyHelper.WouldCauseNegativeBalance(itemEntity, orderedWithProspectiveOut))
+                        {
+                            _logger.LogWarning(
+                                "Item {ItemId} (number {Index}): voucher would cause negative balance at some point in history.",
+                                itemId, index);
+                            await transaction.RollbackAsync(cancellationToken);
+                            return _responseHandler.BadRequest<CreateVoucherWithManyItemsResponse>(
+                                $"Item number {index}: this voucher would result in a negative inventory balance " +
+                                $"at some point in the item's history.");
+                        }
+
                         // Get batches using FIFO
                         var batches = FifoInventoryHelper.GetBatchesForOutQuantity(
-                            itemEntity,
-                            existingVouchers,
-                            totalOutQuantity,
-                            itemRequest.OutQuantity);
+                            itemEntity, existingVouchers, totalOutQuantity, itemRequest.OutQuantity);
 
                         if (batches.Count == 0)
                         {
@@ -565,13 +648,14 @@ public class ItemVoucherService : IItemVoucherService
                         }
 
                         // Create vouchers for each batch
+                        var newOutVouchers = new List<ItemVoucher>();
                         for (int batchIndex = 0; batchIndex < batches.Count; batchIndex++)
                         {
                             var batch = batches[batchIndex];
                             // Add microsecond offset to maintain FIFO order when querying from database
-                            var voucherDate = request.VoucherDate.AddMicroseconds(vouchersToCreate.Count);
+                            var voucherDate = request.VoucherDate.AddMicroseconds(vouchersToCreate.Count + newOutVouchers.Count);
 
-                            vouchersToCreate.Add(new ItemVoucher
+                            newOutVouchers.Add(new ItemVoucher
                             {
                                 Id = Guid.NewGuid(),
                                 VoucherCode = request.VoucherCode,
@@ -584,9 +668,26 @@ public class ItemVoucherService : IItemVoucherService
                             });
                         }
 
+                        vouchersToCreate.AddRange(newOutVouchers);
+
                         if (batches.Count > 1)
                         {
                             splitInfo.Add($"Item {index} split into {batches.Count} batches");
+                        }
+
+                        var orderedWithNewOut = FifoConsistencyHelper.OrderChronologically(
+                            existingVouchers.Concat(newOutVouchers));
+
+                        var cutoffIndex = orderedWithNewOut.FindIndex(v => v.Id == newOutVouchers[0].Id);
+                        var (toRemove, toAdd) = FifoConsistencyHelper.RecostFrom(
+                            itemEntity, orderedWithNewOut, cutoffIndex + newOutVouchers.Count);
+
+                        _context.ItemVouchers.RemoveRange(toRemove);
+                        vouchersToCreate.AddRange(toAdd);
+
+                        if (toRemove.Count > 0)
+                        {
+                            splitInfo.Add($"Item {index}: recosted {toRemove.Count} downstream OUT voucher(s)");
                         }
                     }
 
@@ -611,7 +712,7 @@ public class ItemVoucherService : IItemVoucherService
                 var message = "Vouchers created successfully.";
                 if (splitInfo.Any())
                 {
-                    message += $" {string.Join(", ", splitInfo)} with different FIFO prices.";
+                    message += $" {string.Join(", ", splitInfo)}.";
                 }
 
                 return _responseHandler.Success(response, message);
@@ -657,54 +758,66 @@ public class ItemVoucherService : IItemVoucherService
 
             var item = existingVoucher.Item;
 
-            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+            await using var transaction = await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable, cancellationToken);
             try
             {
-                // Get all existing vouchers EXCEPT the one being updated
+                // All other vouchers for this item, excluding the one being updated.
                 var otherVouchers = await _context.ItemVouchers
                     .Where(iv => iv.ItemId == item.Id && iv.Id != request.Id)
-                    .OrderBy(iv => iv.VoucherDate)
                     .ToListAsync(cancellationToken);
 
-                var totalOutQuantity = otherVouchers.Sum(v => v.OutQuantity);
-                var availableQuantity = FifoInventoryHelper.GetAvailableQuantity(item, otherVouchers);
-
-                // Validate that update won't result in negative inventory
-                if (existingVoucher.InQuantity > 0)
-                {
-                    var quantityReduction = existingVoucher.InQuantity - request.InQuantity;
-                    if (quantityReduction > 0)
-                    {
-                        var availableQuantityAfterUpdate = availableQuantity - quantityReduction;
-
-                        if (availableQuantityAfterUpdate < 0)
-                        {
-                            _logger.LogWarning("Cannot update IN voucher {VoucherId}. Would result in negative inventory. " +
-                                "Available after update: {After}, Reduction: {Reduction}",
-                                request.Id, availableQuantityAfterUpdate, quantityReduction);
-                            await transaction.RollbackAsync(cancellationToken);
-                            return _responseHandler.BadRequest<UpdateVoucherResponse>(
-                                $"Cannot update this voucher. The quantity reduction of {quantityReduction} has already been consumed by OUT vouchers. " +
-                                $"Available quantity would become {availableQuantityAfterUpdate}.");
-                        }
-                    }
-                }
-
-                // Handle IN voucher update - use price from request
                 if (request.InQuantity > 0)
                 {
+                    var updatedVoucher = new ItemVoucher
+                    {
+                        Id = existingVoucher.Id,
+                        VoucherCode = request.VoucherCode,
+                        VoucherDate = request.VoucherDate,
+                        ItemId = item.Id,
+                        InQuantity = request.InQuantity,
+                        OutQuantity = 0,
+                        UnitPrice = request.UnitPrice,
+                        Notes = request.Notes
+                    };
+
+                    var orderedWithUpdated = FifoConsistencyHelper.OrderChronologically(
+                        otherVouchers.Append(updatedVoucher));
+
+                    if (FifoConsistencyHelper.WouldCauseNegativeBalance(item, orderedWithUpdated))
+                    {
+                        _logger.LogWarning(
+                            "Cannot update IN voucher {VoucherId}. Would cause negative balance at some point in history.",
+                            request.Id);
+                        await transaction.RollbackAsync(cancellationToken);
+                        return _responseHandler.BadRequest<UpdateVoucherResponse>(
+                            "Cannot update this voucher. The change would result in a negative inventory balance " +
+                            "at some point in the item's history, due to quantity already consumed by OUT vouchers " +
+                            "or the voucher's date relative to other vouchers.");
+                    }
+
                     _mapper.Map(request, existingVoucher);
+                    var cutoffIndex = FifoConsistencyHelper.FindCutoffIndex(orderedWithUpdated, updatedVoucher);
+                    var (toRemove, toAdd) = FifoConsistencyHelper.RecostFrom(item, orderedWithUpdated, cutoffIndex);
+
+                    _context.ItemVouchers.RemoveRange(toRemove);
+                    await _context.ItemVouchers.AddRangeAsync(toAdd, cancellationToken);
+
                     await _context.SaveChangesAsync(cancellationToken);
                     await transaction.CommitAsync(cancellationToken);
 
                     var response = _mapper.Map<UpdateVoucherResponse>(existingVoucher);
                     response.VoucherDate = DateTime.SpecifyKind(response.VoucherDate, DateTimeKind.Utc);
 
-                    _logger.LogInformation("Updated IN voucher {VoucherId}", request.Id);
+                    _logger.LogInformation(
+                        "Updated IN voucher {VoucherId}. Recosted {RecostCount} downstream OUT voucher(s).",
+                        request.Id, toRemove.Count);
                     return _responseHandler.Success(response, "Voucher updated successfully.");
                 }
 
-                // Handle OUT voucher update - use FIFO prices and potentially split
+                var totalOutQuantity = otherVouchers.Sum(v => v.OutQuantity);
+                var availableQuantity = FifoInventoryHelper.GetAvailableQuantity(item, otherVouchers);
+
                 if (request.OutQuantity > availableQuantity)
                 {
                     _logger.LogWarning("Insufficient quantity for item {ItemId}. Available: {Available}, Requested: {Requested}",
@@ -714,7 +827,29 @@ public class ItemVoucherService : IItemVoucherService
                         $"Insufficient quantity. Available: {availableQuantity}, Requested: {request.OutQuantity}");
                 }
 
-                // Get batches using FIFO (excluding the voucher being updated)
+                var prospectiveOut = new ItemVoucher
+                {
+                    Id = existingVoucher.Id,
+                    VoucherCode = request.VoucherCode,
+                    VoucherDate = request.VoucherDate,
+                    ItemId = item.Id,
+                    InQuantity = 0,
+                    OutQuantity = request.OutQuantity,
+                    UnitPrice = 0,
+                    Notes = request.Notes
+                };
+
+                var orderedWithProspectiveOut = FifoConsistencyHelper.OrderChronologically(
+                    otherVouchers.Append(prospectiveOut));
+
+                if (FifoConsistencyHelper.WouldCauseNegativeBalance(item, orderedWithProspectiveOut))
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return _responseHandler.BadRequest<UpdateVoucherResponse>(
+                        "This update would result in a negative inventory balance at some point in the item's history. " +
+                        "Check the voucher date against other vouchers.");
+                }
+
                 var batches = FifoInventoryHelper.GetBatchesForOutQuantity(
                     item,
                     otherVouchers,
@@ -729,37 +864,15 @@ public class ItemVoucherService : IItemVoucherService
                     return _responseHandler.BadRequest<UpdateVoucherResponse>("Unable to process OUT voucher update.");
                 }
 
-                // If only one batch and matches existing voucher, just update it
-                if (batches.Count == 1)
-                {
-                    existingVoucher.VoucherCode = request.VoucherCode;
-                    existingVoucher.VoucherDate = request.VoucherDate;
-                    existingVoucher.InQuantity = 0;
-                    existingVoucher.OutQuantity = batches[0].AvailableQuantity;
-                    existingVoucher.UnitPrice = batches[0].UnitPrice;
-                    existingVoucher.Notes = request.Notes;
-
-                    await _context.SaveChangesAsync(cancellationToken);
-                    await transaction.CommitAsync(cancellationToken);
-
-                    var response = _mapper.Map<UpdateVoucherResponse>(existingVoucher);
-                    response.VoucherDate = DateTime.SpecifyKind(response.VoucherDate, DateTimeKind.Utc);
-
-                    _logger.LogInformation("Updated OUT voucher {VoucherId}", request.Id);
-                    return _responseHandler.Success(response, "Voucher updated successfully.");
-                }
-
-                // Multiple batches needed - delete old and create new ones
                 _context.ItemVouchers.Remove(existingVoucher);
 
                 var createdVouchers = new List<ItemVoucher>();
                 for (int batchIndex = 0; batchIndex < batches.Count; batchIndex++)
                 {
                     var batch = batches[batchIndex];
-                    // Add microsecond offset to maintain FIFO order when querying from database
                     var voucherDate = request.VoucherDate.AddMicroseconds(batchIndex);
 
-                    var voucherEntity = new ItemVoucher
+                    createdVouchers.Add(new ItemVoucher
                     {
                         Id = Guid.NewGuid(),
                         VoucherCode = request.VoucherCode,
@@ -769,16 +882,24 @@ public class ItemVoucherService : IItemVoucherService
                         OutQuantity = batch.AvailableQuantity,
                         UnitPrice = batch.UnitPrice,
                         Notes = request.Notes
-                    };
-
-                    createdVouchers.Add(voucherEntity);
+                    });
                 }
 
                 await _context.ItemVouchers.AddRangeAsync(createdVouchers, cancellationToken);
+
+                var orderedWithNewOut = FifoConsistencyHelper.OrderChronologically(
+                    otherVouchers.Concat(createdVouchers));
+
+                var cutoffIndex2 = orderedWithNewOut.FindIndex(v => v.Id == createdVouchers[0].Id);
+                var (toRemove2, toAdd2) = FifoConsistencyHelper.RecostFrom(
+                    item, orderedWithNewOut, cutoffIndex2 + createdVouchers.Count);
+
+                _context.ItemVouchers.RemoveRange(toRemove2);
+                await _context.ItemVouchers.AddRangeAsync(toAdd2, cancellationToken);
+
                 await _context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
-                // Return response with first voucher info
                 var firstVoucher = createdVouchers.First();
                 var response2 = new UpdateVoucherResponse
                 {
@@ -792,10 +913,11 @@ public class ItemVoucherService : IItemVoucherService
                     ItemId = firstVoucher.ItemId
                 };
 
-                _logger.LogInformation("Updated OUT voucher {VoucherId}, split into {Count} batch(es)",
-                    request.Id, createdVouchers.Count);
+                _logger.LogInformation(
+                    "Updated OUT voucher {VoucherId}, split into {Count} batch(es). Recosted {RecostCount} downstream OUT voucher(s).",
+                    request.Id, createdVouchers.Count, toRemove2.Count);
                 return _responseHandler.Success(response2,
-                    $"Voucher updated successfully. Split into {createdVouchers.Count} batches with different FIFO prices.");
+                    $"Voucher updated successfully.{(createdVouchers.Count > 1 ? $" Split into {createdVouchers.Count} batches with different FIFO prices." : "")}");
             }
             catch
             {
@@ -835,38 +957,70 @@ public class ItemVoucherService : IItemVoucherService
                 return _responseHandler.NotFound<DeleteVoucherResponse>("Voucher not found.");
             }
 
-            // Validate that deletion won't result in negative inventory
-            if (voucher.InQuantity > 0)
+            var item = voucher.Item;
+
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+            try
             {
-                var allVouchers = await _context.ItemVouchers
-                    .Where(iv => iv.ItemId == voucher.ItemId)
-                    .OrderBy(iv => iv.VoucherDate)
+                var otherVouchers = await _context.ItemVouchers
+                    .Where(iv => iv.ItemId == voucher.ItemId && iv.Id != voucher.Id)
                     .ToListAsync(cancellationToken);
 
-                // Calculate current available quantity
-                var currentAvailableQuantity = FifoInventoryHelper.GetAvailableQuantity(voucher.Item, allVouchers);
+                var orderedWithoutDeleted = FifoConsistencyHelper.OrderChronologically(otherVouchers);
 
-                // Calculate what the available quantity would be after removing this IN voucher
-                var availableQuantityAfterDeletion = currentAvailableQuantity - voucher.InQuantity;
-
-                if (availableQuantityAfterDeletion < 0)
+                if (voucher.InQuantity > 0)
                 {
-                    _logger.LogWarning("Cannot delete IN voucher {VoucherId}. Would result in negative inventory. " +
-                        "Current: {Current}, After deletion: {After}",
-                        request.Id, currentAvailableQuantity, availableQuantityAfterDeletion);
-                    return _responseHandler.BadRequest<DeleteVoucherResponse>(
-                        $"Cannot delete this voucher. The quantity has already been consumed by other OUT vouchers. " +
-                        $"Available quantity would become {availableQuantityAfterDeletion}.");
+                    if (FifoConsistencyHelper.WouldCauseNegativeBalance(item, orderedWithoutDeleted))
+                    {
+                        _logger.LogWarning(
+                            "Cannot delete IN voucher {VoucherId}. Would cause negative balance at some point in history.",
+                            request.Id);
+                        await transaction.RollbackAsync(cancellationToken);
+                        return _responseHandler.BadRequest<DeleteVoucherResponse>(
+                            "Cannot delete this voucher. Its quantity has already been consumed by OUT vouchers " +
+                            "at some point in the item's history.");
+                    }
                 }
+
+                _context.ItemVouchers.Remove(voucher);
+
+                var positionMarker = new ItemVoucher
+                {
+                    Id = voucher.Id,
+                    VoucherCode = voucher.VoucherCode,
+                    VoucherDate = voucher.VoucherDate,
+                    ItemId = voucher.ItemId,
+                    InQuantity = 0,
+                    OutQuantity = 0,
+                    UnitPrice = 0,
+                    Notes = voucher.Notes
+                };
+
+                var orderedWithMarker = FifoConsistencyHelper.OrderChronologically(
+                    otherVouchers.Append(positionMarker));
+
+                var cutoffIndex = FifoConsistencyHelper.FindCutoffIndex(orderedWithMarker, positionMarker);
+
+                var (toRemove, toAdd) = FifoConsistencyHelper.RecostFrom(item, orderedWithoutDeleted, cutoffIndex);
+
+                _context.ItemVouchers.RemoveRange(toRemove);
+                await _context.ItemVouchers.AddRangeAsync(toAdd, cancellationToken);
+
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                var response = new DeleteVoucherResponse { Id = request.Id };
+
+                _logger.LogInformation(
+                    "Deleted voucher {VoucherId} by user {UserId}. Recosted {RecostCount} downstream OUT voucher(s).",
+                    request.Id, userId, toRemove.Count);
+                return _responseHandler.Success(response, "Voucher deleted successfully.");
             }
-
-            _context.ItemVouchers.Remove(voucher);
-            await _context.SaveChangesAsync(cancellationToken);
-
-            var response = new DeleteVoucherResponse { Id = request.Id };
-
-            _logger.LogInformation("Deleted voucher {VoucherId} by user {UserId}", request.Id, userId);
-            return _responseHandler.Success(response, "Voucher deleted successfully.");
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
         }
         catch (OperationCanceledException)
         {

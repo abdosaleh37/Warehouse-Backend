@@ -98,7 +98,11 @@ public static class FifoInventoryHelper
             }
         }
 
-        return new FifoBatch(item.OpeningUnitPrice, 0);
+        var lastVoucherWithStock = vouchers.LastOrDefault(v => v.InQuantity > 0);
+
+        return lastVoucherWithStock != null
+            ? new FifoBatch(lastVoucherWithStock.UnitPrice, 0)
+            : new FifoBatch(item.OpeningUnitPrice, 0);
     }
 
     public static List<FifoBatch> GetBatchesForOutQuantity(
