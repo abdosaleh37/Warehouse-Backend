@@ -427,8 +427,19 @@ public class ItemVoucherService : IItemVoucherService
                         "Check the voucher date against existing vouchers.");
                 }
 
+                var inVouchersUpToOutDate = existingVouchers
+                    .Where(v => v.InQuantity > 0 && v.VoucherDate <= request.VoucherDate)
+                    .ToList();
+
+                var outQuantityConsumedBeforeThis = existingVouchers
+                    .Where(v => v.OutQuantity > 0 && v.VoucherDate < request.VoucherDate)
+                    .Sum(v => v.OutQuantity);
+
                 var batches = FifoInventoryHelper.GetBatchesForOutQuantity(
-                    item, existingVouchers, totalOutQuantity, request.OutQuantity);
+                    item,
+                    inVouchersUpToOutDate,
+                    outQuantityConsumedBeforeThis,
+                    request.OutQuantity);
 
                 if (batches.Count == 0)
                 {
@@ -635,8 +646,19 @@ public class ItemVoucherService : IItemVoucherService
                         }
 
                         // Get batches using FIFO
+                        var inVouchersUpToOutDate = existingVouchers
+                            .Where(v => v.InQuantity > 0 && v.VoucherDate <= request.VoucherDate)
+                            .ToList();
+
+                        var outQuantityConsumedBeforeThis = existingVouchers
+                            .Where(v => v.OutQuantity > 0 && v.VoucherDate < request.VoucherDate)
+                            .Sum(v => v.OutQuantity);
+
                         var batches = FifoInventoryHelper.GetBatchesForOutQuantity(
-                            itemEntity, existingVouchers, totalOutQuantity, itemRequest.OutQuantity);
+                            itemEntity,
+                            inVouchersUpToOutDate,
+                            outQuantityConsumedBeforeThis,
+                            itemRequest.OutQuantity);
 
                         if (batches.Count == 0)
                         {
@@ -762,7 +784,6 @@ public class ItemVoucherService : IItemVoucherService
                 IsolationLevel.Serializable, cancellationToken);
             try
             {
-                // All other vouchers for this item, excluding the one being updated.
                 var otherVouchers = await _context.ItemVouchers
                     .Where(iv => iv.ItemId == item.Id && iv.Id != request.Id)
                     .ToListAsync(cancellationToken);
@@ -850,10 +871,18 @@ public class ItemVoucherService : IItemVoucherService
                         "Check the voucher date against other vouchers.");
                 }
 
+                var inVouchersUpToOutDate = otherVouchers
+                    .Where(v => v.InQuantity > 0 && v.VoucherDate <= request.VoucherDate)
+                    .ToList();
+
+                var outQuantityConsumedBeforeThis = otherVouchers
+                    .Where(v => v.OutQuantity > 0 && v.VoucherDate < request.VoucherDate)
+                    .Sum(v => v.OutQuantity);
+
                 var batches = FifoInventoryHelper.GetBatchesForOutQuantity(
                     item,
-                    otherVouchers,
-                    totalOutQuantity,
+                    inVouchersUpToOutDate,
+                    outQuantityConsumedBeforeThis,
                     request.OutQuantity);
 
                 if (batches.Count == 0)
