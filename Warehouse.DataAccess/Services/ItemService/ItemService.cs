@@ -623,6 +623,16 @@ public class ItemService : IItemService
 
             if (sectionId.HasValue)
             {
+                var sectionExists = await _context.Sections
+                    .AsNoTracking()
+                    .AnyAsync(s => s.Id == sectionId.Value && s.Category.Warehouse.UserId == userId, cancellationToken);
+
+                if (!sectionExists)
+                {
+                    _logger.LogWarning("Section {SectionId} not found for user {UserId}. Cannot export items.", sectionId.Value, userId);
+                    throw new KeyNotFoundException($"Section with ID {sectionId.Value} not found for the user.");
+                }
+
                 sectionsQuery = sectionsQuery.Where(s => s.Id == sectionId.Value);
             }
 

@@ -187,6 +187,12 @@ public class ItemsController : ControllerBase
 
             return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogError(ex, "Section {SectionId} not found for user {UserId}", sectionId, userId);
+            return StatusCode((int)_responseHandler.NotFound<object>("Section not found").StatusCode,
+                _responseHandler.NotFound<object>("Section not found"));
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while exporting all items to Excel for user {UserId}", userId);
