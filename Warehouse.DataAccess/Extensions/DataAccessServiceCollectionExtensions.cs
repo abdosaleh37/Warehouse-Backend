@@ -28,7 +28,6 @@ public static class DataAccessServiceCollectionExtensions
             .AddIdentityServices()
             .AddMapsterConfig()
             .AddApplicationServices();
-
         return services;
     }
 

@@ -493,7 +493,7 @@ public class ItemService : IItemService
             {
                 if (item.OpeningQuantity != request.OpeningQuantity ||
                     item.OpeningUnitPrice != request.OpeningUnitPrice ||
-                    item.OpeningDate != request.OpeningDate)
+                    item.OpeningDate.Date != request.OpeningDate.Date)
                 {
                     _logger.LogWarning("Attempt to change opening balance for item: {ItemId} which has vouchers. Update rejected.", request.Id);
                     return _responseHandler.BadRequest<UpdateItemResponse>("Cannot change opening balance for an item that has associated vouchers.");
@@ -623,6 +623,16 @@ public class ItemService : IItemService
 
             if (sectionId.HasValue)
             {
+                var sectionExists = await _context.Sections
+                    .AsNoTracking()
+                    .AnyAsync(s => s.Id == sectionId.Value && s.Category.Warehouse.UserId == userId, cancellationToken);
+
+                if (!sectionExists)
+                {
+                    _logger.LogWarning("Section {SectionId} not found for user {UserId}. Cannot export items.", sectionId.Value, userId);
+                    throw new KeyNotFoundException($"Section with ID {sectionId.Value} not found for the user.");
+                }
+
                 sectionsQuery = sectionsQuery.Where(s => s.Id == sectionId.Value);
             }
 
