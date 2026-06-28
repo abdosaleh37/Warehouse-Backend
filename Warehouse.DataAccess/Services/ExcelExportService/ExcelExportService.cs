@@ -26,8 +26,6 @@ public class ExcelExportService : IExcelExportService
 
         try
         {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-
             using var package = new ExcelPackage();
             var worksheet = package.Workbook.Worksheets.Add($"Items_{month:D2}_{year}");
 
@@ -176,8 +174,6 @@ public class ExcelExportService : IExcelExportService
 
         try
         {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-
             using var package = new ExcelPackage();
 
             foreach (var sectionEntry in itemsBySections)
@@ -343,8 +339,6 @@ public class ExcelExportService : IExcelExportService
 
         try
         {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-
             using var package = new ExcelPackage();
 
             // Group vouchers by voucher code

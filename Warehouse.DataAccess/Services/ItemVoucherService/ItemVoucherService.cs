@@ -65,8 +65,9 @@ public class ItemVoucherService : IItemVoucherService
                 .AsNoTracking()
                 .Where(iv => iv.ItemId == request.ItemId)
                 .OrderBy(iv => iv.VoucherDate)
-                    .ThenBy(iv => iv.VoucherCode.Length)
-                        .ThenBy(iv => iv.VoucherCode)
+                    .ThenBy(iv => iv.OutQuantity)
+                        .ThenBy(iv => iv.VoucherCode.Length)
+                            .ThenBy(iv => iv.VoucherCode)
                 .ToListAsync(cancellationToken);
 
             if (vouchers.Count == 0)

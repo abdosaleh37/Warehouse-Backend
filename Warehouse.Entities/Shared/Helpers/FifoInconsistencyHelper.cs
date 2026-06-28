@@ -8,8 +8,9 @@ public static class FifoConsistencyHelper
     {
         return vouchers
             .OrderBy(v => v.VoucherDate)
-            .ThenBy(v => v.VoucherCode.Length)
-            .ThenBy(v => v.VoucherCode)
+                .ThenBy(v => v.OutQuantity)
+                    .ThenBy(v => v.VoucherCode.Length)
+                        .ThenBy(v => v.VoucherCode)
             .ToList();
     }
 

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using OfficeOpenXml;
 using Warehouse.DataAccess.ApplicationDbContext;
 using Warehouse.DataAccess.Services.AuthService;
 using Warehouse.DataAccess.Services.CategoryService;
@@ -27,7 +28,8 @@ public static class DataAccessServiceCollectionExtensions
             .AddDatabase(configuration)
             .AddIdentityServices()
             .AddMapsterConfig()
-            .AddApplicationServices();
+            .AddApplicationServices()
+            .ConfigureEpplus();
 
         return services;
     }
@@ -111,6 +113,14 @@ public static class DataAccessServiceCollectionExtensions
         services.AddScoped<IItemService, ItemService>();
         services.AddScoped<IItemVoucherService, ItemVoucherService>();
         services.AddScoped<IExcelExportService, ExcelExportService>();
+
+        return services;
+    }
+
+    public static IServiceCollection ConfigureEpplus(
+        this IServiceCollection services)
+    {
+        ExcelPackage.License.SetNonCommercialPersonal("Shamtex");
 
         return services;
     }
